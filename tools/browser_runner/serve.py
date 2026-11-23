@@ -779,7 +779,7 @@ class ProbeHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == '/':
-            data = b'<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/walkI.html"><title>go</title></head><body style="background:#111;color:#0f0;font:bold 48px monospace;text-align:center;padding:40vh 0"><a href="/walkI.html" style="color:#0f0">LOAD PROBE</a></body></html>'
+            data = b'<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/walk0.html"><title>go</title></head><body style="background:#111;color:#0f0;font:bold 48px monospace;text-align:center;padding:40vh 0"><a href="/walk0.html" style="color:#0f0">LOAD PROBE</a></body></html>'
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.send_header('Content-Length', str(len(data)))
@@ -788,7 +788,7 @@ class ProbeHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
-        if path in ('/p821.html', '/walk1.html', '/walk2.html', '/walk3.html', '/walk4.html', '/walk5.html', '/walk6.html', '/walk7.html', '/walk8.html', '/walk9.html', '/walkA.html', '/walkB.html', '/walkC.html', '/walkD.html', '/walkE.html', '/walkF.html', '/walkG.html', '/walkH.html', '/walkI.html'):
+        if path in ('/p821.html', '/walk1.html', '/walk2.html', '/walk3.html', '/walk4.html', '/walk5.html', '/walk6.html', '/walk7.html', '/walk8.html', '/walk9.html', '/walkA.html', '/walkB.html', '/walkC.html', '/walkD.html', '/walkE.html', '/walkF.html', '/walkG.html', '/walkH.html', '/walkI.html', '/walkJ.html', '/walkK.html', '/walkL.html', '/walkM.html', '/walkN.html', '/walkP.html', '/walkQ.html', '/walkR.html', '/walkS.html', '/walkT.html', '/walkU.html', '/walkV.html', '/walkW.html', '/walkX.html', '/walkY.html', '/walkZ.html', '/walk0.html'):
             fname = path.lstrip('/')
             walk_path = PROJECT / 'probes' / 'phase13_webkit' / fname
             if walk_path.is_file():
